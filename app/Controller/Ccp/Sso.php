@@ -504,26 +504,35 @@ class Sso extends Api\User{
 
                 $characterData->corporation = null;
                 $characterData->alliance = null;
+                /**
+                 * TODO: Move to -> @var $corporation Pathfinder\CorporationModel
+                 * REF: https://github.com/goryn-clade/pathfinder/pull/157/files
+                 */
+                $characterAffiliation = $this->getF3()->ccpClient()->send('getCharacterAffiliation', [$characterId]);
+                if(count($characterAffiliation) === 1) {
+                    $characterCorporationId = $characterAffiliation[0]['corporation']['id'];
+                    $characterAllianceId = $characterAffiliation[0]['alliance']['id'];
 
-                if($corporationId = (int)$characterDataBasic['corporation']['id']){
-                    /**
-                     * @var $corporation Pathfinder\CorporationModel
-                     */
-                    $corporation = Pathfinder\AbstractPathfinderModel::getNew('CorporationModel');
-                    $corporation->getById($corporationId, 0);
-                    if($corporation->valid()){
-                        $characterData->corporation = $corporation;
+                    if($corporationId = (int)$characterCorporationId){
+                        /**
+                         * @var $corporation Pathfinder\CorporationModel
+                         */
+                        $corporation = Pathfinder\AbstractPathfinderModel::getNew('CorporationModel');
+                        $corporation->getById($corporationId, 0);
+                        if($corporation->valid()){
+                            $characterData->corporation = $corporation;
+                        }
                     }
-                }
 
-                if($allianceId = (int)$characterDataBasic['alliance']['id']){
-                    /**
-                     * @var $alliance Pathfinder\AllianceModel
-                     */
-                    $alliance = Pathfinder\AbstractPathfinderModel::getNew('AllianceModel');
-                    $alliance->getById($allianceId, 0);
-                    if($alliance->valid()){
-                        $characterData->alliance = $alliance;
+                    if($allianceId = (int)$characterAllianceId){
+                        /**
+                         * @var $alliance Pathfinder\AllianceModel
+                         */
+                        $alliance = Pathfinder\AbstractPathfinderModel::getNew('AllianceModel');
+                        $alliance->getById($allianceId, 0);
+                        if($alliance->valid()){
+                            $characterData->alliance = $alliance;
+                        }
                     }
                 }
             }
