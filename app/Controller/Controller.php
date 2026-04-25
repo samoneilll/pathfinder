@@ -52,7 +52,7 @@ class Controller {
     /**
      * @param string $template
      */
-    protected function setTemplate($template){
+    protected function setTemplate(string $template){
         $this->template = $template;
     }
 
@@ -87,7 +87,7 @@ class Controller {
      * @param $params
      * @return bool
      */
-    function beforeroute(\Base $f3, $params) : bool {
+    function beforeroute(\Base $f3,  $params) : bool {
         // init user session
         $this->initSession($f3);
 
@@ -133,7 +133,7 @@ class Controller {
      * init new Session handler
      * @param \Base $f3
      */
-    protected function initSession(\Base $f3){
+    protected function initSession(\Base $f3) : void {
         $session = null;
 
         if(
@@ -169,7 +169,7 @@ class Controller {
      * @param \Base $f3
      * @return Resource
      */
-    protected function initResource(\Base $f3){
+    protected function initResource(\Base $f3) : Resource {
         $resource = Resource::instance();
         $resource->setOption('basePath', $f3->get('BASE'));
         $resource->setOption('filePath', [
@@ -216,7 +216,7 @@ class Controller {
      * @param bool $prefix
      * @return array
      */
-    protected function getCookieByName($cookieName, $prefix = false) : array {
+    protected function getCookieByName(string $cookieName, bool $prefix = false) : array {
         $data = [];
 
         if(!empty($cookieName)){
@@ -224,7 +224,7 @@ class Controller {
             if($prefix === true){
                 // look for multiple cookies with same prefix
                 foreach($cookieData as $name => $value){
-                    if(strpos($name, $cookieName) === 0){
+                    if(str_starts_with((string) $name, $cookieName)){
                         $data[$name] = $value;
                     }
                 }
@@ -300,7 +300,7 @@ class Controller {
      * @return Pathfinder\CharacterModel[]
      * @throws \Exception
      */
-    protected function getCookieCharacters($cookieData = [], $checkAuthorization = true) : array {
+    protected function getCookieCharacters( $cookieData = [], bool $checkAuthorization = true) : array {
         $characters = [];
 
         if(
@@ -308,7 +308,7 @@ class Controller {
             !empty($cookieData)
         ){
             /**
-             * @var $characterAuth Pathfinder\CharacterAuthenticationModel
+             * @var Pathfinder\CharacterAuthenticationModel $characterAuth
              */
             $characterAuth = Pathfinder\AbstractPathfinderModel::getNew('CharacterAuthenticationModel');
 
@@ -319,7 +319,7 @@ class Controller {
                 // remove invalid cookies
                 $invalidCookie = false;
 
-                $data = explode(':', $value);
+                $data = explode(':', (string) $value);
                 if(count($data) === 2){
                     // cookie data is well formatted
                     $characterAuth->getByForeignKey('selector', $data[0], ['limit' => 1]);
@@ -329,14 +329,14 @@ class Controller {
                     // "expire data" and "validate token"
                     if( !$characterAuth->dry() ){
                         if(
-                            strtotime($characterAuth->expires) >= $currentTime->getTimestamp() &&
+                            strtotime((string) $characterAuth->expires) >= $currentTime->getTimestamp() &&
                             hash_equals($characterAuth->token, hash('sha256', $data[1]))
                         ){
                             // cookie information is valid
                             // -> try to update character information from ESI
                             // e.g. Corp has changed, this also ensures valid "access_token"
                             /**
-                             * @var $character Pathfinder\CharacterModel
+                             * @var Pathfinder\CharacterModel $character
                              */
                             $updateStatus = $characterAuth->characterId->updateFromESI();
 
@@ -409,9 +409,9 @@ class Controller {
         $character = null;
         if($user = $this->getUser($ttl)){
             $header = self::getRequestHeaders();
-            $requestedCharacterId = (int)$header['Pf-Character'];
+            $requestedCharacterId = (int)($header['Pf-Character'] ?? 0);
             if( !$this->getF3()->get('AJAX') ){
-                $requestedCharacterId = (int)$_COOKIE['old_char_id'];
+                $requestedCharacterId = (int)($_COOKIE['old_char_id'] ?? 0);
                 if(!$requestedCharacterId){
                     $tempCharacterData = (array)$this->getF3()->get(Api\User::SESSION_KEY_TEMP_CHARACTER_DATA);
                     if((int)$tempCharacterData['ID'] > 0){
@@ -447,7 +447,7 @@ class Controller {
 
         if($this->getF3()->exists(Api\User::SESSION_KEY_USER_ID, $userId)){
             /**
-             * @var $userModel Pathfinder\UserModel
+             * @var Pathfinder\UserModel $userModel
              */
             $userModel = Pathfinder\AbstractPathfinderModel::getNew('UserModel');
             $userModel->getById($userId, $ttl);
@@ -468,7 +468,7 @@ class Controller {
      * @param int $characterId
      * @throws \Exception
      */
-    protected function setTempCharacterData(int $characterId){
+    protected function setTempCharacterData(int $characterId) : void {
         if($characterId > 0){
             $tempCharacterData = [
                 'ID'    => $characterId
@@ -497,18 +497,19 @@ class Controller {
         bool $deleteLog = true,
         bool $deleteCookie = false,
         int $statusCode = self::DEFAULT_STATUS_LOGOUT
-    ){
+    ) : void {
         $sessionCharacterData = (array)$f3->get(Api\User::SESSION_KEY_CHARACTERS);
 
         if($sessionCharacterData){
-            $activeCharacterId = ($activeCharacter = $this->getCharacter()) ? $activeCharacter->_id : 0;
+            $activeCharacter = $this->getCharacter();
+            $activeCharacterId = $activeCharacter ? $activeCharacter->_id : 0;
             /**
-             * @var $character Pathfinder\CharacterModel
+             * @var Pathfinder\CharacterModel $character
              */
             $character = Pathfinder\AbstractPathfinderModel::getNew('CharacterModel');
             $characterIds = [];
             foreach($sessionCharacterData as $characterData){
-                if($characterData['ID'] === $activeCharacterId){
+                if($characterData['ID'] === $activeCharacterId && $activeCharacter){
                     $characterIds[] = $activeCharacter->_id;
                     $activeCharacter->logout($deleteSession, $deleteLog, $deleteCookie);
                 }elseif($all){
@@ -546,7 +547,6 @@ class Controller {
      */
     public function getEveServerStatus(\Base $f3){
         $ttl = 60;
-        $esiStatusVersion = 'latest';
         $cacheKey = 'eve_server_status';
 
         if(!$exists = $f3->exists($cacheKey, $return)){
@@ -554,7 +554,7 @@ class Controller {
             $return->error = [];
 
             /**
-             * @var $client CcpClient
+             * @var CcpClient $client
              */
             if($client = $f3->ccpClient()){
                 $return->server = [
@@ -564,8 +564,8 @@ class Controller {
                 ];
                 $return->api = [
                     'name'              => 'ESI API',
-                    'status'            => 'offline',
-                    'statusColor'       => 'red',
+                    'status'            => 'OK',
+                    'statusColor'       => 'green',
                     'url'               => $client->getUrl(),
                     'timeout'           => $client->getTimeout(),
                     'connectTimeout'    => $client->getConnectTimeout(),
@@ -574,7 +574,6 @@ class Controller {
                     'verify'            => $client->getVerify(),
                     'debug'             => $client->getDebugRequests(),
                     'dataSource'        => $client->getDataSource(),
-                    'statusVersion'     => $esiStatusVersion,
                     'routes'            => []
                 ];
 
@@ -600,30 +599,6 @@ class Controller {
                     $return->error[] = (new PathfinderException($serverStatus['error'], 500))->getError();
                 }
 
-                $apiStatus = $client->send('getStatus', 'latest', true);
-                if( !isset($apiStatus['error']) ){
-                    // find top status
-                    $status = 'OK';
-                    $color = 'green';
-                    foreach($apiStatus['status'] as &$statusData){
-                        if('red' == $statusData['status']){
-                            $status = 'unstable';
-                            $color = $statusData['status'] = 'orange'; // red is already in use for fatal API errors (e.g. no response at all, or offline)
-                            break;
-                        }
-                        if('yellow' == $statusData['status']){
-                            $status = 'degraded';
-                            $color = $statusData['status'];
-                        }
-                    }
-
-                    $return->api['status']      = $status;
-                    $return->api['statusColor'] = $color;
-                    $return->api['routes']      = $apiStatus['status'];
-                }else{
-                    $return->error[] = (new PathfinderException($apiStatus['error'], 500))->getError();
-                }
-
                 if(empty($return->error)){
                     $f3->set($cacheKey, $return, $ttl);
                 }
@@ -644,7 +619,7 @@ class Controller {
      * @param null $trace
      * @return \stdClass
      */
-    protected function getErrorObject(int $code, string $status = '', string $text = '', $trace = null) : \stdClass {
+    protected function getErrorObject(int $code, string $status = '', string $text = '', mixed $trace = null) : \stdClass {
         $object = (object) [];
         $object->type = 'error';
         $object->code = $code;
@@ -664,7 +639,7 @@ class Controller {
      * @param string $type
      * @return \stdClass
      */
-    protected function getNotificationObject(string $title, $text = '', $type = 'danger') : \stdClass {
+    protected function getNotificationObject(string $title, string $text = '', string $type = 'danger') : \stdClass {
         $notification = (object) [];
         $notification->type = in_array($type, self::NOTIFICATION_TYPES) ? $type : 'danger';
         $notification->title = $title;
@@ -678,7 +653,7 @@ class Controller {
      * @param null $alias
      * @return bool|string
      */
-    protected function getRouteUrl($alias = null){
+    protected function getRouteUrl(?string $alias = null){
         $url = false;
 
         if(!empty($alias)){
@@ -720,7 +695,7 @@ class Controller {
         foreach(get_object_vars($error) as $key => $value){
             $row = str_pad(' ',2 ) . str_pad($key . ':',10 );
             if($key == 'trace'){
-                $value = preg_replace("/\r\n|\r|\n/", "\n" . str_pad(' ',12 ), $value);
+                $value = preg_replace("/\r\n|\r|\n/", "\n" . str_pad(' ',12 ), (string) $value);
                 $row .= PHP_EOL . str_pad(' ',12 ) . $value;
             }else{
                 $row .= $value;
@@ -748,16 +723,17 @@ class Controller {
                 $error = $exception->getError();
             }else{
                 // ... handle error $f3->error() calls
+                $debug = (int)$f3->get('DEBUG');
                 $error = $this->getErrorObject(
                     $errorData['code'],
                     $errorData['status'],
-                    $errorData['text'],
-                    $f3->get('DEBUG') >= 1 ? $errorData['trace'] : null
+                    $debug >= 1 ? $errorData['text'] : 'An internal error occurred',
+                    $debug >= 1 ? $errorData['trace'] : null
                 );
             }
 
             // check if error is a PDO Exception ----------------------------------------------------------------------
-            if(strpos(strtolower( $f3->get('ERROR.text') ), 'duplicate') !== false){
+            if(str_contains(strtolower( $f3->get('ERROR.text') ), 'duplicate')){
                 preg_match_all('/\'([^\']+)\'/', $f3->get('ERROR.text'), $matches, PREG_SET_ORDER);
 
                 if(count($matches) === 2){
@@ -790,11 +766,15 @@ class Controller {
                 // set error data for template rendering
                 $error->redirectUrl = $this->getRouteUrl();
                 $f3->set('errorData', $error);
+                // PHP 8: ensure template vars have safe defaults on error paths
+                if(!$f3->exists('tplBodyClass')) $f3->set('tplBodyClass', 'pf-landing');
+                if(!$f3->exists('tplJsView')) $f3->set('tplJsView', 'login');
+                if(!$f3->exists('tplCharacterId')) $f3->set('tplCharacterId', null);
 
                 // 4xx/5xx error -> set error page template
-                if( preg_match('/^4[0-9]{2}$/', $error->code) ){
+                if( preg_match('/^4[0-9]{2}$/', (string) $error->code) ){
                     $f3->set('tplPageContent', Config::getPathfinderData('STATUS.4XX') );
-                }elseif( preg_match('/^5[0-9]{2}$/', $error->code) ){
+                }elseif( preg_match('/^5[0-9]{2}$/', (string) $error->code) ){
                     $f3->set('tplPageContent', Config::getPathfinderData('STATUS.5XX'));
                 }
 
@@ -841,9 +821,9 @@ class Controller {
         return function(string $action = 'increment', string $type = 'default', $val = 0) use (&$store){
             $return = null;
             switch($action){
-                case 'increment': $store[$type]++; break;
-                case 'add': $store[$type] += (int)$val; break;
-                case 'get': $return = $store[$type] ? : null; break;
+                case 'increment': $store[$type] = ($store[$type] ?? 0) + 1; break;
+                case 'add': $store[$type] = ($store[$type] ?? 0) + (int)$val; break;
+                case 'get': $return = ($store[$type] ?? null) ?: null; break;
                 case 'reset': unset($store[$type]); break;
             }
             return $return;
@@ -857,14 +837,14 @@ class Controller {
      * @return null|Controller
      * @throws \Exception
      */
-    static function getController($className){
+    static function getController(string $className){
         $controller = null;
         // add subNamespaces for controller classes
         $subNamespaces = ['Api', 'Ccp'];
 
         for($i = 0; $i <= count($subNamespaces); $i++){
             $path = [__NAMESPACE__];
-            $path[] = ( isset($subNamespaces[$i - 1]) ) ? $subNamespaces[$i - 1] : '';
+            $path[] = $subNamespaces[$i - 1] ?? '';
             $path[] = $className;
             $classPath = implode('\\', array_filter($path));
 
@@ -922,7 +902,7 @@ class Controller {
             // Therefore we can´t use this for all servers
             // https://github.com/exodus4d/pathfinder/issues/58
             foreach($_SERVER as $name => $value){
-                $name = mb_strtolower($name);
+                $name = mb_strtolower((string) $name);
                 if(mb_substr($name, 0, $prefixLength) == $headerPrefix){
                     $headers[mb_convert_case(str_replace('_', '-', mb_substr($name, $prefixLength)), MB_CASE_TITLE)] = $value;
                 }
@@ -948,13 +928,13 @@ class Controller {
             $serverData->requiredVersion = 'unknown';
             $serverData->phpInterfaceType = php_sapi_name();
 
-            if(strpos(strtolower($_SERVER['SERVER_SOFTWARE']), 'nginx' ) !== false){
+            if(str_contains(strtolower((string) $_SERVER['SERVER_SOFTWARE']), 'nginx' )){
                 // Nginx server
-                $serverSoftwareArgs = explode('/', strtolower( $_SERVER['SERVER_SOFTWARE']) );
+                $serverSoftwareArgs = explode('/', strtolower( (string) $_SERVER['SERVER_SOFTWARE']) );
                 $serverData->type = reset($serverSoftwareArgs);
                 $serverData->version = end($serverSoftwareArgs);
                 $serverData->requiredVersion = $f3->get('REQUIREMENTS.SERVER.NGINX.VERSION');
-            }elseif(strpos(strtolower($_SERVER['SERVER_SOFTWARE']), 'apache' ) !== false){
+            }elseif(str_contains(strtolower((string) $_SERVER['SERVER_SOFTWARE']), 'apache' )){
                 // Apache server
                 $serverData->type = 'apache';
                 $serverData->requiredVersion = $f3->get('REQUIREMENTS.SERVER.APACHE.VERSION');
@@ -1000,7 +980,7 @@ class Controller {
      * @param $key
      * @return string
      */
-    static function formatHiveKey($key) : string {
+    static function formatHiveKey(string $key) : string {
         $illegalCharacters = ['-', ' '];
         return strtolower(str_replace($illegalCharacters, '', $key));
     }

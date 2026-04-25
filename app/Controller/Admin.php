@@ -11,6 +11,7 @@ namespace Exodus4D\Pathfinder\Controller;
 
 use Exodus4D\Pathfinder\Controller\Ccp\Sso;
 use Exodus4D\Pathfinder\Lib\Config;
+use Exodus4D\Pathfinder\Model\Pathfinder\AllianceMapModel;
 use Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel;
 use Exodus4D\Pathfinder\Model\Pathfinder\CorporationModel;
 use Exodus4D\Pathfinder\Model\Pathfinder\MapModel;
@@ -38,10 +39,11 @@ class Admin extends Controller{
      * @return bool
      * @throws \Exception
      */
-    function beforeroute(\Base $f3, $params): bool {
+    function beforeroute(\Base $f3,  $params): bool {
         $return = parent::beforeroute($f3, $params);
 
         $f3->set('tplPage', 'login');
+        $f3->set('tplLogged', false);
 
         if($character = $this->getAdminCharacter($f3)){
             $f3->set('tplLogged', true);
@@ -70,6 +72,11 @@ class Admin extends Controller{
     public function afterroute(\Base $f3) {
         // js view (file)
         $f3->set('tplJsView', 'admin');
+        if(!$f3->exists('tplCharacterId')) $f3->set('tplCharacterId', null);
+        if(!$f3->exists('tplNotification')) $f3->set('tplNotification', null);
+        if(!$f3->exists('registrationStatusButton')) $f3->set('registrationStatusButton', '');
+        if(!$f3->exists('registrationStatusTitle')) $f3->set('registrationStatusTitle', '');
+        if(!$f3->exists('SESSION.SSO.ERROR')) $f3->set('SESSION.SSO.ERROR', null);
 
         // render view
         echo \Template::instance()->render( Config::getPathfinderData('view.index') );
@@ -122,17 +129,17 @@ class Admin extends Controller{
      * @param null $character
      * @throws \Exception
      */
-    public function dispatch(\Base $f3, $params, $character = null){
+    public function dispatch(\Base $f3,  $params, mixed $character = null){
         if($character instanceof CharacterModel){
             // user logged in
-            $parts = array_values(array_filter(array_map('strtolower', explode('/', $params['*']))));
-            $f3->set('tplPage', $parts[0]);
+            $parts = array_values(array_filter(array_map(strtolower(...), explode('/', (string) $params['*']))));
+            $f3->set('tplPage', $parts[0] ?? 'settings');
 
-            switch($parts[0]){
+            switch($parts[0] ?? 'settings'){
                 case 'settings':
-                    switch($parts[1]){
+                    switch($parts[1] ?? null){
                         case 'save':
-                            $objectId = (int)$parts[2];
+                            $objectId = (int)($parts[2] ?? 0);
                             $values  = (array)$f3->get('GET');
                             $this->saveSettings($character, $objectId, $values);
 
@@ -144,17 +151,17 @@ class Admin extends Controller{
                     $this->initSettings($f3, $character);
                     break;
                 case 'members':
-                    switch($parts[1]){
+                    switch($parts[1] ?? null){
                         case 'kick':
-                            $objectId = (int)$parts[2];
-                            $value  = (int)$parts[3];
+                            $objectId = (int)($parts[2] ?? 0);
+                            $value  = (int)($parts[3] ?? 0);
                             $this->kickCharacter($character, $objectId, $value);
 
                             $f3->reroute('@admin(@*=/' . $parts[0] . ')');
                             break;
                         case 'ban':
-                            $objectId = (int)$parts[2];
-                            $value  = (int)$parts[3];
+                            $objectId = (int)($parts[2] ?? 0);
+                            $value  = (int)($parts[3] ?? 0);
                             $this->banCharacter($character, $objectId, $value);
                             break;
                     }
@@ -162,16 +169,16 @@ class Admin extends Controller{
                     $this->initMembers($f3, $character);
                     break;
                 case 'maps':
-                    switch($parts[1]){
+                    switch($parts[1] ?? null){
                         case 'active':
-                            $objectId = (int)$parts[2];
-                            $value  = (int)$parts[3];
+                            $objectId = (int)($parts[2] ?? 0);
+                            $value  = (int)($parts[3] ?? 0);
                             $this->activateMap($character, $objectId, $value);
 
                             $f3->reroute('@admin(@*=/' . $parts[0] . ')');
                             break;
                         case 'delete':
-                            $objectId = (int)$parts[2];
+                            $objectId = (int)($parts[2] ?? 0);
                             $this->deleteMap($character, $objectId);
                             $f3->reroute('@admin(@*=/' . $parts[0] . ')');
                             break;
@@ -193,7 +200,7 @@ class Admin extends Controller{
      * @param array $settings
      * @throws \Exception
      */
-    protected function saveSettings(CharacterModel $character, int $corporationId, array $settings){
+    protected function saveSettings(CharacterModel $character, int $corporationId,  $settings){
         $defaultRole = RoleModel::getDefaultRole();
 
         if($corporationId && $defaultRole){
@@ -201,10 +208,10 @@ class Admin extends Controller{
             foreach($corporations as $corporation){
                 if($corporation->_id === $corporationId){
                     // character has access to that corporation -> create/update/delete rights...
-                    if($corporationRightsData = (array)$settings['rights']){
+                    if($corporationRightsData = (array)($settings['rights'] ?? [])){
                         // get existing corp rights
                         foreach($corporation->getRights($corporation::RIGHTS, ['addInactive' => true]) as $corporationRight){
-                            $corporationRightData = $corporationRightsData[$corporationRight->rightId->_id];
+                            $corporationRightData = $corporationRightsData[$corporationRight->rightId->_id] ?? null;
                             if(
                                 $corporationRightData &&
                                 $corporationRightData['roleId'] != $defaultRole->_id // default roles should not be saved
@@ -233,8 +240,7 @@ class Admin extends Controller{
     protected function kickCharacter(CharacterModel $character, $kickCharacterId, $minutes){
         $kickOptions = self::KICK_OPTIONS;
         $minKickTime = key($kickOptions) ;
-        end($kickOptions);
-        $maxKickTime = key($kickOptions);
+        $maxKickTime = array_key_last($kickOptions);
         $minutes = in_array($minutes, range($minKickTime, $maxKickTime)) ? $minutes : 0;
 
         $kickCharacters = $this->filterValidCharacters($character, $kickCharacterId);
@@ -294,7 +300,9 @@ class Admin extends Controller{
                     $characters = $filterCharacters;
                 }
             }else{
-                $characters = $character->getCorporation()->getCharacters($characterIds);
+                if($corporation = $character->getCorporation()){
+                    $characters = $corporation->getCharacters($characterIds);
+                }
             }
         }
         return $characters;
@@ -337,7 +345,9 @@ class Admin extends Controller{
                 $maps = $filterMaps;
             }
         }else{
-            $maps = $character->getCorporation()->getMaps($mapId, ['addInactive' => true, 'ignoreMapCount' => true]);
+            if($corporation = $character->getCorporation()){
+                $maps = $corporation->getMaps($mapId, ['addInactive' => true, 'ignoreMapCount' => true]);
+            }
         }
 
         return $maps;
@@ -358,7 +368,7 @@ class Admin extends Controller{
      * @param CharacterModel $character
      */
     protected function initSettings(\Base $f3, CharacterModel $character){
-        $data = (object) [];
+        $data = (object) ['corporations' => []];
         $corporations = $this->getAccessibleCorporations($character);
 
         foreach($corporations as $corporation){
@@ -374,7 +384,7 @@ class Admin extends Controller{
      * @param CharacterModel $character
      */
     protected function initMembers(\Base $f3, CharacterModel $character){
-        $data = (object) [];
+        $data = (object) ['corpMembers' => []];
         if($characterCorporation = $character->getCorporation()){
             $corporations = $this->getAccessibleCorporations($character);
 
@@ -386,7 +396,7 @@ class Admin extends Controller{
 
             // sort corporation from current user first
             if( !empty($data->corpMembers[$characterCorporation->name]) ){
-                $data->corpMembers = array($characterCorporation->name => $data->corpMembers[$characterCorporation->name]) + $data->corpMembers;
+                $data->corpMembers = [$characterCorporation->name => $data->corpMembers[$characterCorporation->name]] + $data->corpMembers;
             }
         }
 
@@ -399,22 +409,34 @@ class Admin extends Controller{
      * @param CharacterModel $character
      */
     protected function initMaps(\Base $f3, CharacterModel $character){
-        $data = (object) [];
-        if($characterCorporation = $character->getCorporation()){
-            $corporations = $this->getAccessibleCorporations($character);
+        $data = (object) ['corpMaps' => [], 'allianceMaps' => []];
 
-            foreach($corporations as $corporation){
-                if($maps = $corporation->getMaps(null, ['addInactive' => true, 'ignoreMapCount' => true])){
-                    $data->corpMaps[$corporation->name] = $maps;
+        $corporations = $this->getAccessibleCorporations($character);
+        foreach($corporations as $corporation){
+            if($maps = $corporation->getMaps(null, ['addInactive' => true, 'ignoreMapCount' => true])){
+                $data->corpMaps[$corporation->name] = $maps;
+            }
+        }
+
+        // alliance maps visible to SUPER admins only
+        if($character->roleId->name === 'SUPER'){
+            $allianceMaps = (new AllianceMapModel())->find();
+            if($allianceMaps){
+                foreach($allianceMaps as $allianceMap){
+                    $alliance = $allianceMap->allianceId;
+                    $map = $allianceMap->mapId;
+                    if($alliance && $alliance->_id && $map && $map->_id){
+                        $data->allianceMaps[$alliance->name][] = $map;
+                    }
                 }
             }
         }
 
         $f3->set('tplMaps', $data);
 
-        if( !isset($data->corpMaps) ){
+        if(empty($data->corpMaps) && empty($data->allianceMaps)){
             $f3->set('tplNotification', $this->getNotificationObject('No maps found',
-                'Only corporation maps could get loaded' ,
+                'No corporation or alliance maps found',
                 'info'
             ));
         }

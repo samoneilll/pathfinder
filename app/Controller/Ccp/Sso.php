@@ -52,7 +52,7 @@ class Sso extends Api\User{
      * -> cf. Controller->getCookieCharacters() ( equivalent cookie based login)
      * @param \Base $f3
      */
-    public function requestAdminAuthorization($f3){
+    public function requestAdminAuthorization(\Base $f3) : void {
         // store browser tabId to be "targeted" after login
         $f3->set(self::SESSION_KEY_SSO_FROM, 'admin');
 
@@ -66,7 +66,7 @@ class Sso extends Api\User{
      * @param \Base $f3
      * @throws \Exception
      */
-    public function requestAuthorization($f3){
+    public function requestAuthorization(\Base $f3) : void {
         $params = $f3->get('GET');
 
         if(
@@ -78,7 +78,7 @@ class Sso extends Api\User{
             $characterId = (int)trim((string)$params['characterId']);
 
             /**
-             * @var $character Pathfinder\CharacterModel
+             * @var Pathfinder\CharacterModel $character
              */
             $character = Pathfinder\AbstractPathfinderModel::getNew('CharacterModel');
             $character->getById($characterId, 0);
@@ -129,7 +129,7 @@ class Sso extends Api\User{
      * @param array $scopes
      * @param string $rootAlias
      */
-    private function rerouteAuthorization(\Base $f3, array $scopes = [], string $rootAlias = 'login'){
+    private function rerouteAuthorization(\Base $f3,  $scopes = [], string $rootAlias = 'login'){
         if( !empty( Controller\Controller::getEnvironmentData('CCP_SSO_CLIENT_ID') ) ){
             // used for "state" check between request and callback
             $state = bin2hex( openssl_random_pseudo_bytes(12) );
@@ -163,7 +163,7 @@ class Sso extends Api\User{
      * @param \Base $f3
      * @throws \Exception
      */
-    public function callbackAuthorization($f3){
+    public function callbackAuthorization(\Base $f3) : void {
         $getParams = (array)$f3->get('GET');
 
         // users can log in either from @login (new user) or @map (existing user) root alias
@@ -227,7 +227,7 @@ class Sso extends Api\User{
                                         if(is_null($user = $characterModel->getUser())){
                                             // no user found (new character) -> create new user and connect to character
                                             /**
-                                             * @var $user Pathfinder\UserModel
+                                             * @var Pathfinder\UserModel $user
                                              */
                                             $user = Pathfinder\AbstractPathfinderModel::getNew('UserModel');
                                             $user->name = $characterModel->name;
@@ -236,7 +236,7 @@ class Sso extends Api\User{
                                     }
 
                                     /**
-                                     * @var $userCharactersModel Pathfinder\UserCharacterModel
+                                     * @var Pathfinder\UserCharacterModel $userCharactersModel
                                      */
                                     if( is_null($userCharactersModel = $characterModel->userCharacter) ){
                                         $userCharactersModel = $characterModel->rel('userCharacter');
@@ -300,7 +300,7 @@ class Sso extends Api\User{
      * @param \Base $f3
      * @throws \Exception
      */
-    public function login(\Base $f3){
+    public function login(\Base $f3) : void {
         $data = (array)$f3->get('GET');
         $cookieName = (string)$data['cookie'];
         $character = null;
@@ -339,7 +339,7 @@ class Sso extends Api\User{
      * @param bool $authCode
      * @return null|\stdClass
      */
-    protected function getSsoAccessData($authCode){
+    protected function getSsoAccessData(string $authCode) : ?\stdClass {
         $accessData = null;
 
         if( !empty($authCode) ){
@@ -358,7 +358,7 @@ class Sso extends Api\User{
      * @param string $authCode
      * @return \stdClass
      */
-    protected function verifyAuthorizationCode(string $authCode){
+    protected function verifyAuthorizationCode(string $authCode) : \stdClass {
         $requestParams = [
             'grant_type' => 'authorization_code',
             'code' => $authCode
@@ -373,7 +373,7 @@ class Sso extends Api\User{
      * @param string $refreshToken
      * @return \stdClass
      */
-    public function refreshAccessToken(string $refreshToken){
+    public function refreshAccessToken(string $refreshToken) : \stdClass {
         $requestParams = [
             'grant_type' => 'refresh_token',
             'refresh_token' => $refreshToken
@@ -389,7 +389,7 @@ class Sso extends Api\User{
      * @param array $requestParams
      * @return \stdClass
      */
-    protected function requestAccessData(array $requestParams) : \stdClass {
+    protected function requestAccessData( $requestParams) : \stdClass {
         $accessData = (object) [];
         $accessData->accessToken = null;
         $accessData->refreshToken = null;
@@ -458,12 +458,11 @@ class Sso extends Api\User{
         // set $leeway in seconds to 10, since sometimes there can be verification errors due server clock skew resulting
         // in tokens that look like they were issued 1 second in the future.
         JWT::$leeway = 10;
-        // map list of algs from CCP JWK 
-        $supportedAlgs = array_column($ccpJwks['keys'], 'alg');
         // get decoded JWT using ccp supplied JWK
-        $decodedJwt = JWT::decode($accessToken, JWK::parseKeySet($ccpJwks), $supportedAlgs);
+        // firebase/php-jwt v6.4+: algs are embedded in Key objects returned by parseKeySet; no separate alg array needed
+        $decodedJwt = JWT::decode($accessToken, JWK::parseKeySet($ccpJwks));
         // check if issuer matches correct ccp supplied claim values
-        if (strpos($decodedJwt->iss, $this->getSsoJwkClaim()) !== true) {            
+        if (strpos((string) $decodedJwt->iss, static::getSsoJwkClaim()) !== true) {            
             self::getSSOLogger()->write(sprintf(self::ERROR_TOKEN_VERIFICATION, __METHOD__));
         }
         return $decodedJwt;
@@ -478,11 +477,12 @@ class Sso extends Api\User{
 
         if( !empty($jwkJson) ){
             // ensure items in 'keys' are arrays and not objects
-            array_walk($jwkJson['keys'], function(&$item){$item = (array) $item;});
+            array_walk($jwkJson['keys'], function(&$item): void{$item = (array) $item;});
             return $jwkJson;
-        }else{
-            self::getSSOLogger()->write(sprintf(self::ERROR_LOGIN_FAILED, __METHOD__));
         }
+
+        self::getSSOLogger()->write(sprintf(self::ERROR_LOGIN_FAILED, __METHOD__));
+        return [];
     }
 
     /**
@@ -498,24 +498,22 @@ class Sso extends Api\User{
             $characterDataBasic = $this->getF3()->ccpClient()->send('getCharacter', $characterId);
             if( !empty($characterDataBasic) ){
                 // remove some "unwanted" data -> not relevant for Pathfinder
-                $characterData->character = array_filter($characterDataBasic, function($key){
-                    return in_array($key, ['id', 'name', 'securityStatus']);
-                }, ARRAY_FILTER_USE_KEY);
+                $characterData->character = array_filter($characterDataBasic, fn($key) => in_array($key, ['id', 'name', 'securityStatus']), ARRAY_FILTER_USE_KEY);
 
                 $characterData->corporation = null;
                 $characterData->alliance = null;
                 /**
-                 * TODO: Move to -> @var $corporation Pathfinder\CorporationModel
+                 * TODO: Move to -> @var Pathfinder\CorporationModel $corporation
                  * REF: https://github.com/goryn-clade/pathfinder/pull/157/files
                  */
                 $characterAffiliation = $this->getF3()->ccpClient()->send('getCharacterAffiliation', [$characterId]);
                 if(count($characterAffiliation) === 1) {
                     $characterCorporationId = $characterAffiliation[0]['corporation']['id'];
-                    $characterAllianceId = $characterAffiliation[0]['alliance']['id'];
+                    $characterAllianceId = $characterAffiliation[0]['alliance']['id'] ?? null;
 
                     if($corporationId = (int)$characterCorporationId){
                         /**
-                         * @var $corporation Pathfinder\CorporationModel
+                         * @var Pathfinder\CorporationModel $corporation
                          */
                         $corporation = Pathfinder\AbstractPathfinderModel::getNew('CorporationModel');
                         $corporation->getById($corporationId, 0);
@@ -526,7 +524,7 @@ class Sso extends Api\User{
 
                     if($allianceId = (int)$characterAllianceId){
                         /**
-                         * @var $alliance Pathfinder\AllianceModel
+                         * @var Pathfinder\AllianceModel $alliance
                          */
                         $alliance = Pathfinder\AbstractPathfinderModel::getNew('AllianceModel');
                         $alliance->getById($allianceId, 0);
@@ -552,7 +550,7 @@ class Sso extends Api\User{
 
         if(!empty($characterData->character)){
             /**
-             * @var $character Pathfinder\CharacterModel
+             * @var Pathfinder\CharacterModel $character
              */
             $character = Pathfinder\AbstractPathfinderModel::getNew('CharacterModel');
             $character->getById((int)$characterData->character['id'], 0);

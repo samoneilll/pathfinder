@@ -37,7 +37,7 @@ class CharacterLogModel extends AbstractPathfinderModel {
             'type' => Schema::DT_INT,
             'index' => true,
             'unique' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel::class,
             'constraint' => [
                 [
                     'table' => 'character',
@@ -122,7 +122,7 @@ class CharacterLogModel extends AbstractPathfinderModel {
      * set log data by associative array
      * @param array $logData
      */
-    public function setData($logData){
+    public function setData( $logData){
 
         if( isset($logData['system']) ){
             $this->systemId = (int)$logData['system']['id'];

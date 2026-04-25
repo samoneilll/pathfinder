@@ -76,9 +76,7 @@ class Cron extends \Cron {
     public function getJobsConfig(array $names = []) : array {
         $config = [];
 
-        $jobs = array_filter($this->jobs, function(string $name) use ($names) : bool {
-            return !empty($names) ? in_array($name, $names) : true;
-        }, ARRAY_FILTER_USE_KEY );
+        $jobs = array_filter($this->jobs, fn(string $name): bool => !empty($names) ? in_array($name, $names) : true, ARRAY_FILTER_USE_KEY );
 
         foreach($jobs as $name => $jobConf){
             $jobConf = $this->getJobDataFromConf($jobConf);
@@ -128,7 +126,7 @@ class Cron extends \Cron {
         $job = null;
         try{
             /**
-             * @var $job Pathfinder\CronModel
+             * @var Pathfinder\CronModel $job
              */
             $jobModel = Pathfinder\AbstractPathfinderModel::getNew('CronModel');
             // we need to check if table exists here
@@ -138,7 +136,7 @@ class Cron extends \Cron {
                 $jobModel->getByForeignKey('name', $name);
                 $job = $jobModel;
             }
-        }catch(\Exception $e){
+        }catch(\Exception){
             // Cron DB table not exists or other DB issues...
         }
 

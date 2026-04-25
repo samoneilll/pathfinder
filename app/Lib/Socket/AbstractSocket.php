@@ -77,10 +77,10 @@ abstract class AbstractSocket implements SocketInterface {
             ->connect($this->uri)
             ->then($this->initConnection())
             ->then(
-                function(Socket\ConnectionInterface $connection) use ($deferred) {
+                function(Socket\ConnectionInterface $connection) use ($deferred): void {
                     $deferred->resolve($connection);
                 },
-                function(\Exception $e) use ($deferred) {
+                function(\Exception $e) use ($deferred): void {
                     $deferred->reject($e);
                 });
 
@@ -98,31 +98,29 @@ abstract class AbstractSocket implements SocketInterface {
 
         $this->connect()
             ->then(
-                function(Socket\ConnectionInterface $connection) use ($payload, $deferred) {
-                    return (new Promise\FulfilledPromise($connection))
-                        ->then($this->initWrite($payload))
-                        ->then($this->initRead())
-                        ->then($this->initClose($connection))
-                        ->then(
-                            function($payload) use ($deferred) {
-                                // we got valid data from socketServer -> check if $payload contains an error
-                                if(is_array($payload) && $payload['task'] == 'error'){
-                                    // ... wrap error payload in a rejectedPromise
-                                    $deferred->reject(
-                                        new Promise\RejectedPromise(
-                                            new \Exception($payload['load'])
-                                        )
-                                    );
-                                }else{
-                                    // good response
-                                    $deferred->resolve($payload);
-                                }
-                            },
-                            function(\Exception $e) use ($deferred) {
-                                $deferred->reject($e);
-                            });
-                },
-                function(\Exception $e) use ($deferred) {
+                fn(Socket\ConnectionInterface $connection) => (new Promise\FulfilledPromise($connection))
+                    ->then($this->initWrite($payload))
+                    ->then($this->initRead())
+                    ->then($this->initClose($connection))
+                    ->then(
+                        function($payload) use ($deferred): void {
+                            // we got valid data from socketServer -> check if $payload contains an error
+                            if(is_array($payload) && $payload['task'] == 'error'){
+                                // ... wrap error payload in a rejectedPromise
+                                $deferred->reject(
+                                    new Promise\RejectedPromise(
+                                        new \Exception($payload['load'])
+                                    )
+                                );
+                            }else{
+                                // good response
+                                $deferred->resolve($payload);
+                            }
+                        },
+                        function(\Exception $e) use ($deferred): void {
+                            $deferred->reject($e);
+                        }),
+                function(\Exception $e) use ($deferred): void {
                     // connection error
                     $deferred->reject($e);
                 });
@@ -133,11 +131,9 @@ abstract class AbstractSocket implements SocketInterface {
             ->otherwise(
                 // final exception handler for rejected promises -> convert to payload array
                 // -> No socket related Exceptions should be thrown down the chain
-                function(\Exception $e){
-                    return new Promise\RejectedPromise(
-                        $this->newPayload('error', $e->getMessage())
-                    );
-                });
+                fn(\Exception $e) => new Promise\RejectedPromise(
+                    $this->newPayload('error', $e->getMessage())
+                ));
     }
 
     /**
@@ -180,7 +176,7 @@ abstract class AbstractSocket implements SocketInterface {
 
             $streamEncoded = new NDJson\Encoder($connection);
 
-            $streamEncoded->on('error', function(\Exception $e) use ($deferred) {
+            $streamEncoded->on('error', function(\Exception $e) use ($deferred): void {
                 $deferred->reject($e);
             });
 
@@ -207,7 +203,7 @@ abstract class AbstractSocket implements SocketInterface {
             $promise = Promise\Stream\first($streamDecoded);
 
             // register on('data') for main input stream
-            $connection->once('data', function ($chunk) use ($stream) {
+            $connection->once('data', function ($chunk) use ($stream): void {
                 // send current data chunk to processing stream -> resolves promise
                 $stream->emit('data', [$chunk]);
             });

@@ -40,6 +40,9 @@ define([
         persistentAliasesId: 'pf-map-dialog-persistent-aliases',                        // id for "persistentAliases" checkbox
         persistentSignaturesId: 'pf-map-dialog-persistent-signatures',                  // id for "persistentSignatures" checkbox
         trackAbyssalJumpsId: 'pf-map-dialog-track-abyss-jumps',                         // id for "trackAbyssalJumps" checkbox
+        allowUnknownSystemsId: 'pf-map-dialog-allow-unknown',                           // id for "allowUnknownSystems" checkbox
+        granularK162Id: 'pf-map-dialog-granular-k162',                                   // id for "granularK162" checkbox
+        allowGroupsId: 'pf-map-dialog-allow-groups',                                    // id for "allowGroups" checkbox
 
         logHistoryId: 'pf-map-dialog-history',                                          // id for "history logging" checkbox
         logActivityId: 'pf-map-dialog-activity',                                        // id for "activity" checkbox
@@ -163,6 +166,9 @@ define([
                     persistentAliasesId : config.persistentAliasesId,
                     persistentSignaturesId : config.persistentSignaturesId,
                     trackAbyssalJumpsId : config.trackAbyssalJumpsId,
+                    allowUnknownSystemsId : config.allowUnknownSystemsId,
+                    granularK162Id : config.granularK162Id,
+                    allowGroupsId : config.allowGroupsId,
                     logHistoryId: config.logHistoryId,
                     logActivityId: config.logActivityId,
 
@@ -171,6 +177,9 @@ define([
                     persistentAliases: true,
                     persistentSignatures: true,
                     trackAbyssalJumps: false,
+                    allowUnknownSystems: false,
+                    granularK162: false,
+                    allowGroups: true,
                     logActivity: true,
                     logHistory: true,
 
@@ -235,6 +244,9 @@ define([
                         persistentAliases: mapData.config.persistentAliases,
                         persistentSignatures: mapData.config.persistentSignatures,
                         trackAbyssalJumps: mapData.config.trackAbyssalJumps,
+                        allowUnknownSystems: mapData.config.allowUnknownSystems,
+                        granularK162: mapData.config.granularK162,
+                        allowGroups: mapData.config.allowGroups,
                         logActivity: mapData.config.logging.activity,
                         logHistory: mapData.config.logging.history,
 
@@ -387,6 +399,10 @@ define([
                                             let tabLinkEls = Util.getMapTabLinkElements(Util.getMapModule()[0], Util.getObjVal(mapData, 'id'));
                                             if(tabLinkEls.length === 1){
                                                 ModuleMap.updateTabData(tabLinkEls[0], mapData);
+                                            }else if(tabLinkEls.length === 0){
+                                                // new map — tab doesn't exist yet; inject into cache and trigger render
+                                                Util.updateCurrentMapData({config: mapData, data: {systems: [], connections: []}});
+                                                ModuleMap.updateMapModule(Util.getMapModule()[0]);
                                             }
 
                                             $(mapInfoDialog).modal('hide');
@@ -759,6 +775,8 @@ define([
                     Util.request('DELETE', 'Map', mapId, {}, {}).then(
                         payload => {
                             Util.showNotify({title: 'Map deleted', text: 'Map: ' + mapName, type: 'success'});
+                            Util.deleteCurrentMapData(mapId);
+                            ModuleMap.updateMapModule(Util.getMapModule()[0]);
                         },
                         Util.handleAjaxErrorResponse
                     ).finally(() => mapDeleteDialog.modal('hide'));

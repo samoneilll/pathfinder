@@ -32,7 +32,7 @@ class RaceModel extends AbstractUniverseModel {
         'factionId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\FactionModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\FactionModel::class,
             'constraint' => [
                 [
                     'table' => 'faction',
@@ -42,7 +42,7 @@ class RaceModel extends AbstractUniverseModel {
             'validate' => 'notDry'
         ],
         'stations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StationModel', 'raceId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StationModel::class, 'raceId']
         ]
     ];
 
@@ -69,7 +69,7 @@ class RaceModel extends AbstractUniverseModel {
         $data = self::getF3()->ccpClient()->send('getUniverseRace', $id);
         if(!empty($data) && !isset($data['error'])){
             /**
-             * @var $faction FactionModel
+             * @var FactionModel $faction
              */
             $faction = $this->rel('factionId');
             $faction->loadById($data['factionId'], $accessToken, $additionalOptions);

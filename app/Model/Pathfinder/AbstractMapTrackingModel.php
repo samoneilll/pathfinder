@@ -20,7 +20,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
         'createdCharacterId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel::class,
             'constraint' => [
                 [
                     'table' => 'character',
@@ -32,7 +32,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
         'updatedCharacterId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\CharacterModel::class,
             'constraint' => [
                 [
                     'table' => 'character',
@@ -105,7 +105,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
      * @param CharacterModel $characterModel
      * @return ConnectionModel|false
      */
-    public function save(CharacterModel $characterModel = null){
+    public function save(?CharacterModel $characterModel = null){
         if($this->dry()){
             $this->createdCharacterId = $characterModel;
         }

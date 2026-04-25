@@ -30,7 +30,7 @@ class StructureModel extends AbstractUniverseModel {
         'systemId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -42,7 +42,7 @@ class StructureModel extends AbstractUniverseModel {
         'typeId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\TypeModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\TypeModel::class,
             'constraint' => [
                 [
                     'table' => 'type',
@@ -93,7 +93,7 @@ class StructureModel extends AbstractUniverseModel {
         $data = self::getF3()->ccpClient()->send('getUniverseStructure', $id, $accessToken);
         if(!empty($data) && !isset($data['error'])){
             /**
-             * @var $type TypeModel
+             * @var TypeModel $type
              */
             $type = $this->rel('typeId');
             $type->loadById($data['typeId'], $accessToken, $additionalOptions);
@@ -115,10 +115,12 @@ class StructureModel extends AbstractUniverseModel {
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             //change `id` column to BigInt
-            $schema = new Schema($db);
-            $typeQuery = $schema->findQuery($schema->dataTypes[Schema::DT_BIGINT]);
-            $db->exec("ALTER TABLE " . $db->quotekey('structure') .
-                " MODIFY COLUMN " . $db->quotekey('id')  . " " . $typeQuery . " NOT NULL");
+            if($db){
+                $schema = new Schema($db);
+                $typeQuery = $schema->findQuery($schema->dataTypes[Schema::DT_BIGINT]);
+                $db->exec("ALTER TABLE " . $db->quotekey('structure') .
+                    " MODIFY COLUMN " . $db->quotekey('id')  . " " . $typeQuery . " NOT NULL");
+            }
         }
         return $status;
     }

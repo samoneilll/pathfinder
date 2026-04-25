@@ -72,7 +72,7 @@ class TypeModel extends AbstractUniverseModel {
         'groupId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\GroupModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\GroupModel::class,
             'constraint' => [
                 [
                     'table' => 'group',
@@ -104,25 +104,25 @@ class TypeModel extends AbstractUniverseModel {
             'index' => true
         ],
         'stations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StationModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StationModel::class, 'typeId']
         ],
         'structures' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StructureModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StructureModel::class, 'typeId']
         ],
         'planets' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\PlanetModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\PlanetModel::class, 'typeId']
         ],
         'stars' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StarModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StarModel::class, 'typeId']
         ],
         'attributes' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\TypeAttributeModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\TypeAttributeModel::class, 'typeId']
         ],
         'stargates' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StargateModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StargateModel::class, 'typeId']
         ],
         'statics' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\SystemStaticModel', 'typeId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\SystemStaticModel::class, 'typeId']
         ]
     ];
 
@@ -130,10 +130,10 @@ class TypeModel extends AbstractUniverseModel {
      * set 'dogma_attributes' during ESI import process to a virtual field
      * -> 'dogma_attributes' get imported after type is saved
      * @see loadData()
-     * @param $dogmaAttributesData
+     * @param  $dogmaAttributesData
      * @return null
      */
-    public function set_dogma_attributes($dogmaAttributesData){
+    public function set_dogma_attributes( $dogmaAttributesData){
         $this->virtual('dogmaAttributes', (array)$dogmaAttributesData);
         return null;
     }
@@ -153,7 +153,6 @@ class TypeModel extends AbstractUniverseModel {
      */
     public function reset($mapper = true, $essentials = true){
         $this->clearVirtual('dogmaAttributes');
-        parent::reset($mapper, $essentials);
     }
 
     /**
@@ -161,7 +160,7 @@ class TypeModel extends AbstractUniverseModel {
      * @param array $additionalData
      * @return null|object
      */
-    public function getData(array $additionalData = []){
+    public function getData( $additionalData = []){
         $typeData = (object) [];
         $typeData->id = $this->_id;
         $typeData->name = $this->name;
@@ -243,7 +242,7 @@ class TypeModel extends AbstractUniverseModel {
         if($this->attributes){
             foreach($this->attributes as $typeAttribute){
                 /**
-                 * @var $typeAttribute TypeAttributeModel
+                 * @var TypeAttributeModel $typeAttribute
                  */
                 $attributesData[] = get_object_vars($typeAttribute->getData());
             }
@@ -257,7 +256,7 @@ class TypeModel extends AbstractUniverseModel {
      * @param self $self
      * @param $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent($self,  $pkeys){
         $self->syncDogmaAttributes();
 
         return parent::afterInsertEvent($self, $pkeys);
@@ -268,7 +267,7 @@ class TypeModel extends AbstractUniverseModel {
      * @param self $self
      * @param $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self,  $pkeys){
         $self->syncDogmaAttributes();
 
         return parent::afterUpdateEvent($self, $pkeys);
@@ -301,8 +300,8 @@ class TypeModel extends AbstractUniverseModel {
             // add new dogmaTypes
             foreach($dogmaAttributesData as $dogmaAttributeData){
                 /**
-                 * @var $typeAttribute TypeAttributeModel
-                 * @var $dogmaAttribute DogmaAttributeModel
+                 * @var TypeAttributeModel $typeAttribute
+                 * @var DogmaAttributeModel $dogmaAttribute
                  */
                 $typeAttribute = $this->rel('attributes');
                 $dogmaAttribute = $typeAttribute->rel('attributeId');
@@ -322,7 +321,7 @@ class TypeModel extends AbstractUniverseModel {
      * -> used to inject custom attributes (not available from ESI)
      * @param array $data
      */
-    private function manipulateDogmaAttributes(array &$data){
+    private function manipulateDogmaAttributes( &$data){
         if(!$this->storeDogmaAttributes){
             // attributes should not get saved
             unset($data['dogma_attributes']);
@@ -331,7 +330,7 @@ class TypeModel extends AbstractUniverseModel {
                 case Config::ESI_GROUP_WORMHOLE_ID:
                     if(
                         !empty($wormholesCSVData = static::getCSVData('wormhole', 'name')) &&
-                        !empty($wormholeCSVData = $wormholesCSVData[self::formatWormholeName($data['name'])])
+                        !empty($wormholeCSVData = $wormholesCSVData[self::formatWormholeName($data['name'])] ?? null)
                     ){
                         // found relevant wormhole data in *.csv for current type
                         if(!empty($scanWormholeStrength = (float)$wormholeCSVData['scanWormholeStrength'])){
@@ -352,13 +351,13 @@ class TypeModel extends AbstractUniverseModel {
      * @param string $accessToken
      * @param array $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '',  $additionalOptions = []){
         $data = self::getF3()->ccpClient()->send('getUniverseType', $id);
         if(!empty($data)){
             $this->manipulateDogmaAttributes($data);
 
             /**
-             * @var $group GroupModel
+             * @var GroupModel $group
              */
             $group = $this->rel('groupId');
             $group->loadById($data['groupId'], $accessToken, $additionalOptions);

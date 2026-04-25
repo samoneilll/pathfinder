@@ -32,7 +32,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
         'systemId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -57,7 +57,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
         'connectionId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel::class,
             'constraint' => [
                 [
                     'table' => 'connection',
@@ -83,9 +83,9 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
 
     /**
      * set data by associative array
-     * @param array $data
+     * @param  $data
      */
-    public function setData(array $data){
+    public function setData( $data){
         $this->copyfrom($data, ['name', 'groupId', 'typeId', 'description', 'connectionId']);
     }
 
@@ -127,10 +127,10 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
 
     /**
      * setter for connectionId
-     * @param $connectionId
+     * @param ConnectionModel|int $connectionId
      * @return int|null
      */
-    public function set_connectionId($connectionId){
+    public function set_connectionId(ConnectionModel|int|null $connectionId){
         $connectionId = (int)$connectionId;
         $validConnectionId = null;
 
@@ -139,7 +139,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
             $systemId = (int) $this->get('systemId', true);
 
             /**
-             * @var $connection ConnectionModel
+             * @var ConnectionModel $connection
              */
             $connection = $this->rel('connectionId');
             $connection->getById($connectionId);
@@ -202,10 +202,10 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
     /**
      * compares a new data set (array) with the current values
      * and checks if something has changed
-     * @param array $signatureData
+     * @param  $signatureData
      * @return bool
      */
-    public function hasChanged(array $signatureData) : bool {
+    public function hasChanged( $signatureData) : bool {
         $hasChanged = false;
 
         foreach((array)$signatureData as $key => $value){
@@ -245,7 +245,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterInsertEvent($self, $pkeys){
         $self->logActivity('signatureCreate');
@@ -256,7 +256,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      */
     public function beforeUpdateEvent($self, $pkeys) : bool {
@@ -271,7 +271,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterUpdateEvent($self, $pkeys){
         $self->logActivity('signatureUpdate');
@@ -281,7 +281,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterEraseEvent($self, $pkeys){
         $self->logActivity('signatureDelete');

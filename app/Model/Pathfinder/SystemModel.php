@@ -65,7 +65,7 @@ class SystemModel extends AbstractMapTrackingModel {
         'mapId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\MapModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\MapModel::class,
             'constraint' => [
                 [
                     'table' => 'map',
@@ -76,7 +76,13 @@ class SystemModel extends AbstractMapTrackingModel {
         'systemId' => [
             'type' => Schema::DT_INT,
             'index' => true,
+            'nullable' => true,
             'validate' => true
+        ],
+        'securityClass' => [
+            'type' => Schema::DT_VARCHAR128,
+            'nullable' => true,
+            'default' => null
         ],
         'alias' => [
             'type' => Schema::DT_VARCHAR128,
@@ -92,7 +98,7 @@ class SystemModel extends AbstractMapTrackingModel {
         'typeId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\SystemTypeModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\SystemTypeModel::class,
             'constraint' => [
                 [
                     'table' => 'system_type',
@@ -105,7 +111,7 @@ class SystemModel extends AbstractMapTrackingModel {
             'nullable' => false,
             'default' => 1,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\SystemStatusModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\SystemStatusModel::class,
             'constraint' => [
                 [
                     'table' => 'system_status',
@@ -146,23 +152,36 @@ class SystemModel extends AbstractMapTrackingModel {
             'nullable' => false,
             'default' => 0
         ],
+        'groupId' => [
+            'type'           => Schema::DT_INT,
+            'index'          => true,
+            'nullable'       => true,
+            'default'        => null,
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\MapGroupModel::class,
+            'activity-log'   => true
+        ],
         'signatures' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\SystemSignatureModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\SystemSignatureModel::class, 'systemId']
         ],
         'connectionsSource' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel', 'source']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel::class, 'source']
         ],
         'connectionsTarget' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel', 'target']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel::class, 'target']
         ]
     ];
 
     /**
      * set data by associative array
-     * @param array $data
+     * @param  $data
      */
-    public function setData(array $data){
+    public function setData( $data){
         $this->copyfrom($data, ['statusId', 'locked', 'rallyUpdated', 'position', 'description']);
+
+        // update group membership when provided (null detaches, int attaches)
+        if(array_key_exists('groupId', $data)){
+            $this->groupId = $data['groupId'] ? (int)$data['groupId'] : null;
+        }
     }
 
     /**
@@ -176,6 +195,8 @@ class SystemModel extends AbstractMapTrackingModel {
             $data->id                       = $this->_id;
             $data->mapId                    = is_object($this->mapId) ? $this->get('mapId', true) : 0;
             $data->systemId                 = $this->systemId;
+            $data->isUnknown                = ($this->systemId === null);
+            $data->securityClass            = $this->securityClass;
             $data->alias                    = $this->alias;
             $data->tag                      = $this->tag;
 
@@ -189,9 +210,11 @@ class SystemModel extends AbstractMapTrackingModel {
 
             $data->locked                   = $this->locked;
             $data->drifter                  = $this->isDrifter();
-            $data->rallyUpdated             = strtotime($this->rallyUpdated);
+            $data->rallyUpdated             = $this->rallyUpdated ? strtotime($this->rallyUpdated) : false;
             $data->rallyPoke                = $this->rallyPoke;
             $data->description              = $this->description ? : '';
+
+            $data->groupId                  = $this->groupId ? $this->get('groupId', true) : null;
 
             $data->position                 = (object) [];
             $data->position->x              = $this->posX;
@@ -261,6 +284,18 @@ class SystemModel extends AbstractMapTrackingModel {
      * @throws \Exception
      */
     private function getStaticSystemData(){
+        if($this->systemId === null){
+            $stub = (object)[];
+            $stub->name           = '???';
+            $stub->security       = $this->securityClass ?? 'C1';
+            $stub->trueSec        = 0.0;
+            $stub->constellationId = 0;
+            $stub->constellation  = '';
+            $stub->regionId       = 0;
+            $stub->region         = '';
+            return $stub;
+        }
+
         $staticData = null;
         if(!is_object(self::$priorityCacheStore)){
             self::$priorityCacheStore = new PriorityCacheStore();
@@ -300,7 +335,10 @@ class SystemModel extends AbstractMapTrackingModel {
      * @return bool
      * @throws \Exception
      */
-    protected function validate_systemId(string $key, int $val) : bool {
+    protected function validate_systemId(string $key, ?int $val) : bool {
+        if($val === null){
+            return true;
+        }
         $valid = true;
         // check if static system data exists for systemId = $val
         if( !(bool)(new Universe())->getSystemData($val) ){
@@ -360,9 +398,9 @@ class SystemModel extends AbstractMapTrackingModel {
 
     /**
      * setter for statusId
-     * @param $status
+     * @param  $status
      */
-    public function set_status($status){
+    public function set_status( $status){
         if($statusId = (int)$status['id']){
             $this->statusId = $statusId;
         }
@@ -370,10 +408,10 @@ class SystemModel extends AbstractMapTrackingModel {
 
     /**
      * setter for position array
-     * @param $position
+     * @param  $position
      * @return null
      */
-    public function set_position($position){
+    public function set_position( $position){
         $position = (array)$position;
         if(count($position) === 2){
             $this->posX = $position['x'];
@@ -418,18 +456,12 @@ class SystemModel extends AbstractMapTrackingModel {
     public function set_rallyUpdated($rally){
         $rally = (int)$rally;
 
-        switch($rally){
-            case 0:
-                $rally = null;
-                break;
-            case 1:
-                // new rally point set
-                $rally = date('Y-m-d H:i:s', time());
-                break;
-            default:
-                $rally = date('Y-m-d H:i:s', $rally);
-                break;
-        }
+        $rally = match ($rally) {
+            0 => null,
+            // new rally point set
+            1 => date('Y-m-d H:i:s', time()),
+            default => date('Y-m-d H:i:s', $rally),
+        };
 
         return $rally;
     }
@@ -497,7 +529,7 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterInsertEvent($self, $pkeys){
         $self->clearCacheData();
@@ -508,7 +540,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      */
     public function beforeUpdateEvent($self, $pkeys) : bool {
@@ -538,7 +570,7 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterUpdateEvent($self, $pkeys){
         $self->clearCacheData();
@@ -549,7 +581,7 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterEraseEvent($self, $pkeys){
         $self->clearCacheData();
@@ -563,7 +595,7 @@ class SystemModel extends AbstractMapTrackingModel {
      */
     public function getNewSignature() : SystemSignatureModel {
         /**
-         * @var $signature SystemSignatureModel
+         * @var SystemSignatureModel $signature
          */
         $signature = self::getNew('SystemSignatureModel');
         $signature->systemId = $this;
@@ -683,6 +715,9 @@ class SystemModel extends AbstractMapTrackingModel {
      * @return \stdClass[]
      */
     public function getStructuresData() : array {
+        if($this->systemId === null){
+            return [];
+        }
         return $this->getMap()->getStructuresData($this->systemId);
     }
 
@@ -731,12 +766,12 @@ class SystemModel extends AbstractMapTrackingModel {
      * -> send to a Slack channel
      * -> send to a Discord channel
      * -> send to an Email
-     * @param array $rallyData
+     * @param  $rallyData
      * @param CharacterModel $characterModel
      * @throws Exception\ConfigException
      * @throws \Exception
      */
-    public function sendRallyPoke(array $rallyData, CharacterModel $characterModel){
+    public function sendRallyPoke( $rallyData, CharacterModel $characterModel){
         // rally log needs at least one handler to be valid
         $isValidLog = false;
         $log = new Logging\RallyLog('rallySet', $this->getMap()->getLogChannelData());
@@ -762,17 +797,6 @@ class SystemModel extends AbstractMapTrackingModel {
             $log->addHandler('discordRally', null, $this->getMap()->getDiscordWebHookConfig($discordChannelKey));
         }
 
-        // Mail poke ------------------------------------------------------------------------------
-        $mailAddressKey = 'RALLY_SET';
-        if(
-            $rallyData['pokeMail'] === true &&
-            $this->getMap()->isMailSendEnabled('RALLY_SET')
-        ){
-            $isValidLog = true;
-            $mailConf = $this->getMap()->getSMTPConfig($mailAddressKey, false);
-            $log->addHandler('mail', 'mail', $mailConf);
-        }
-
         // Buffer log -----------------------------------------------------------------------------
         if($isValidLog){
             $log->setTempData($this->getLogObjectData(true));
@@ -790,22 +814,14 @@ class SystemModel extends AbstractMapTrackingModel {
      * set system type based on security
      */
     public function setType(){
-        switch($this->security){
-            case 'H':
-            case 'L':
-            case '0.0':
-            case 'T':
-                $typeId = 2; // k-space
-                break;
-            case 'A':
-                $typeId = 3; // a-space
-                break;
-            default:
-                $typeId = 1; // w-space
-        }
+        $typeId = match ($this->security) {
+            'H', 'L', '0.0', 'T' => 2,
+            'A' => 3,
+            default => 1,
+        };
 
         /**
-         * @var $type MapTypeModel
+         * @var MapTypeModel $type
          */
         $type = $this->rel('typeId');
         $type->getById($typeId);
@@ -854,9 +870,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @return array|null
      */
     public function getSignatureHistoryEntry(string $stamp) : ?array {
-        $signatureHistoryData = array_filter($this->getSignaturesHistory(), function($historyEntry) use ($stamp){
-            return md5($historyEntry['stamp']) == $stamp;
-        });
+        $signatureHistoryData = array_filter($this->getSignaturesHistory(), fn($historyEntry) => md5((string) $historyEntry['stamp']) == $stamp);
         return empty($signatureHistoryData) ? null : reset($signatureHistoryData);
     }
 

@@ -30,7 +30,7 @@ class AbstractIterator extends \RecursiveArrayIterator {
      * AbstractIterator constructor.
      * @param $data
      */
-    function __construct($data){
+    function __construct(mixed $data){
         parent::__construct($data, \RecursiveIteratorIterator::SELF_FIRST);
     }
 
@@ -39,7 +39,7 @@ class AbstractIterator extends \RecursiveArrayIterator {
      * @return array
      */
     public function getData(){
-        iterator_apply($this, 'self::recursiveIterator', [$this]);
+        iterator_apply($this, [static::class, 'recursiveIterator'], [$this]);
 
         return iterator_to_array($this, true);
     }
@@ -49,7 +49,7 @@ class AbstractIterator extends \RecursiveArrayIterator {
      * @param $array
      * @return array
      */
-    protected function camelCaseKeys($array){
+    protected function camelCaseKeys( $array){
         return Util::arrayChangeKeys($array, [\Base::instance(), 'camelcase']);
     }
 
@@ -73,7 +73,7 @@ class AbstractIterator extends \RecursiveArrayIterator {
                     Util::is_assoc($iterator->current())
                 ){
                     // recursive call for child elements
-                    $iterator->offsetSet($iterator->key(), forward_static_call(array('self', __METHOD__), $iterator->getChildren())->getArrayCopy());
+                    $iterator->offsetSet($iterator->key(), forward_static_call([static::class, __FUNCTION__], $iterator->getChildren())->getArrayCopy());
                     $iterator->next();
                 }elseif(is_array($mapValue)){
                     // a -> array mapping

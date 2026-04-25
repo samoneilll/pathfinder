@@ -33,7 +33,7 @@ class AllianceModel extends AbstractUniverseModel {
         'factionId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\FactionModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\FactionModel::class,
             'constraint' => [
                 [
                     'table' => 'faction',
@@ -42,10 +42,10 @@ class AllianceModel extends AbstractUniverseModel {
             ]
         ],
         'corporations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\CorporationModel', 'allianceId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\CorporationModel::class, 'allianceId']
         ],
         'sovereigntySystems' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel', 'allianceId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel::class, 'allianceId']
         ]
     ];
 
@@ -71,7 +71,7 @@ class AllianceModel extends AbstractUniverseModel {
             try{
                 $dateTime  = new \DateTime($date);
                 $date = $dateTime->format('Y-m-d H:i:s');
-            }catch(\Exception $e){
+            }catch(\Exception){
                 $date = null;
             }
         }
@@ -89,7 +89,7 @@ class AllianceModel extends AbstractUniverseModel {
         if(!empty($data) && !isset($data['error'])){
             if($data['factionId']){
                 /**
-                 * @var $faction FactionModel
+                 * @var FactionModel $faction
                  */
                 $faction = $this->rel('factionId');
                 $faction->loadById($data['factionId'], $accessToken, $additionalOptions);

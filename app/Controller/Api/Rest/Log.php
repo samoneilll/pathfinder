@@ -22,11 +22,11 @@ class Log extends AbstractRestController {
         $requestData = $this->getRequestData($f3);
         $connectionData = [];
 
-        if($connectionId = (int)$requestData['connectionId']){
+        if($connectionId = (int)($requestData['connectionId'] ?? 0)){
             $activeCharacter = $this->getCharacter();
 
             /**
-             * @var $connection Pathfinder\ConnectionModel
+             * @var Pathfinder\ConnectionModel $connection
              */
             $connection = Pathfinder\AbstractPathfinderModel::getNew('ConnectionModel');
             $connection->getById($connectionId);
@@ -50,12 +50,14 @@ class Log extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function delete(\Base $f3, $params){
+    public function delete(\Base $f3,  $params){
         $logId = (int)$params['id'];
         $connectionData = [];
 
         if($log = $this->update($logId, ['active' => false])){
-            $connectionData[] =  $log->getConnection()->getData(true, true);
+            if($connection = $log->getConnection()){
+                $connectionData[] =  $connection->getData(true, true);
+            }
         }
 
         $this->out($connectionData);
@@ -67,13 +69,15 @@ class Log extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function patch(\Base $f3, $params){
+    public function patch(\Base $f3,  $params){
         $logId = (int)$params['id'];
         $requestData = $this->getRequestData($f3);
         $connectionData = [];
 
         if($log = $this->update($logId, $requestData)){
-            $connectionData[] =  $log->getConnection()->getData(true, true);
+            if($connection = $log->getConnection()){
+                $connectionData[] =  $connection->getData(true, true);
+            }
         }
 
         $this->out($connectionData);
@@ -88,12 +92,12 @@ class Log extends AbstractRestController {
      * @return bool|Pathfinder\ConnectionLogModel
      * @throws \Exception
      */
-    private function update(int $logId, array $logData){
+    private function update(int $logId,  $logData){
         $log = false;
         if($logId){
             $activeCharacter = $this->getCharacter();
             /**
-             * @var $log Pathfinder\ConnectionLogModel
+             * @var Pathfinder\ConnectionLogModel $log
              */
             $log = Pathfinder\AbstractPathfinderModel::getNew('ConnectionLogModel');
             $log->getById($logId, 0, false);

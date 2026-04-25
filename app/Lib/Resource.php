@@ -97,7 +97,7 @@ class Resource extends \Prefab {
      * @param $value
      * @param bool $extend
      */
-    public function setOption(string $option, $value, bool $extend = false){
+    public function setOption(string $option, mixed $value, bool $extend = false){
         $this->$option = ($extend && is_array($value) && is_array($this->$option)) ? array_merge($this->$option, $value) : $value;
     }
 
@@ -107,7 +107,7 @@ class Resource extends \Prefab {
      * @return mixed|null
      */
     public function getOption(string $option){
-        return isset($this->$option) ? $this->$option : null;
+        return $this->$option ?? null;
     }
 
     /**
@@ -151,8 +151,8 @@ class Resource extends \Prefab {
     public function buildLinks(){
         $this->build();
         $links = [];
-        foreach($this->resources as $group => $resources){
-            foreach($resources as $file => $conf){
+        foreach($this->resources as $resources){
+            foreach($resources as $conf){
                 $resourceHeader = '<link';
                 foreach($conf['options'] as $attr => $value){
                     $resourceHeader .= ' ' . $attr . '="' . $value . '"';
@@ -176,8 +176,8 @@ class Resource extends \Prefab {
     public function buildHeader() : string {
         $this->build();
         $headers = [];
-        foreach($this->resources as $group => $resources){
-            foreach($resources as $file => $conf){
+        foreach($this->resources as $resources){
+            foreach($resources as $conf){
                 $resourceHeader = '<' . $conf['link'] . '>';
                 foreach($conf['options'] as $attr => $value){
                     $resourceHeader .= '; ' . $attr . '="' . $value . '"';
@@ -210,7 +210,7 @@ class Resource extends \Prefab {
                 }
 
                 if( !empty($additionalAttr = $this->getAdditionalAttrs($group)) ){
-                    $conf['options'] = $conf['options'] + $additionalAttr;
+                    $conf['options'] += $additionalAttr;
                 }
             }
         }
@@ -224,7 +224,7 @@ class Resource extends \Prefab {
      * @return string
      */
     protected function getLinkAttrAs(string $group) : string {
-        return isset(self::ATTR_AS[$group]) ? self::ATTR_AS[$group] : '';
+        return self::ATTR_AS[$group] ?? '';
     }
 
     /**
@@ -234,7 +234,7 @@ class Resource extends \Prefab {
      * @return string
      */
     protected function getLinkAttrType(string $group) : string {
-        return isset(self::ATTR_TYPE[$group]) ? self::ATTR_TYPE[$group] : '';
+        return self::ATTR_TYPE[$group] ?? '';
     }
 
     /**
@@ -244,7 +244,7 @@ class Resource extends \Prefab {
      * @return array
      */
     protected function getAdditionalAttrs(string $group) : array {
-        return isset(self::ATTR_ADD[$group]) ? self::ATTR_ADD[$group] : [];
+        return self::ATTR_ADD[$group] ?? [];
     }
 
     /**
@@ -254,6 +254,6 @@ class Resource extends \Prefab {
      * @return string
      */
     protected function getFileExtension(string $group) : string {
-        return isset($this->fileExt[$group]) ? $this->fileExt[$group] : '';
+        return $this->fileExt[$group] ?? '';
     }
 }

@@ -77,16 +77,14 @@ class MapHistory extends AbstractCron {
             $files = Search::getFilesBySize($dir, $this->getMaxLogSize($f3));
 
             // sort by file size
-            $files = new SortingIterator($files, function( \SplFileInfo $a, \SplFileInfo $b){
-                return $b->getSize() - $a->getSize();
-            });
+            $files = new SortingIterator($files, fn(\SplFileInfo $a, \SplFileInfo $b) => $b->getSize() - $a->getSize());
 
             // limit files count for truncate
             $files = new \LimitIterator($files, 0, self::LOG_COUNT);
 
-            foreach($files as $filename => $file){
+            foreach($files as $file){
                 /**
-                 * @var $file \SplFileInfo
+                 * @var \SplFileInfo $file
                  */
                 if($file->isFile()){
                     $largeFiles++;

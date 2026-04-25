@@ -795,7 +795,9 @@ define([
                                         systemData.type.id,
                                         Util.getAreaIdBySecurity(systemData.security),
                                         rowData.groupId,
-                                        systemData
+                                        Object.assign({}, systemData, {
+                                            granularK162: Util.getObjVal(Util.getCurrentMapData(systemData.mapId), 'config.granularK162')
+                                        })
                                     );
                                 },
                                 display: function(value, sourceData){
@@ -1845,7 +1847,49 @@ define([
          * @param cell
          */
         editableConnectionOnSave(cell){
+            // capture the value before the popup opens — .value is already updated by save time
+            let prevConnectionId = 0;
+            $(cell).on('shown', (e, editable) => {
+                prevConnectionId = parseInt(editable.value) || 0;
+            });
+
             $(cell).on('save', (e, params) => {
+                let oldConnectionId = prevConnectionId;
+                let newConnectionId = parseInt(params.newValue) || 0;
+
+                if(oldConnectionId && oldConnectionId !== newConnectionId){
+                    let mapId = this._systemData.mapId;
+                    let oldConnection = $().getConnectionById(mapId, oldConnectionId);
+
+                    if(oldConnection){
+                        // find the far-side system endpoint
+                        let ep0 = $(oldConnection.endpoints[0].element);
+                        let ep1 = $(oldConnection.endpoints[1].element);
+                        let farSystem = ep0.data('id') !== this._systemData.id ? ep0 : ep1;
+
+                        if(farSystem.data('isUnknown')){
+                            bootbox.confirm({
+                                title: 'Unknown system orphaned',
+                                message: 'The previous connection led to an unknown placeholder system. Delete the unknown system and its connection?',
+                                buttons: {
+                                    cancel: {label: 'Keep', className: 'btn-default'},
+                                    confirm: {label: 'Delete', className: 'btn-danger'}
+                                },
+                                callback: result => {
+                                    if(result){
+                                        let map = MapUtil.getMapInstance(mapId);
+                                        let mapContainer = $(map.getContainer());
+                                        mapContainer.trigger('pf:deleteSystems', {
+                                            systems: [farSystem],
+                                            callback: () => {}
+                                        });
+                                    }
+                                }
+                            });
+                        }
+                    }
+                }
+
                 this.checkConnectionConflicts();
             });
         }
@@ -2774,10 +2818,10 @@ define([
          * @param groupId
          * @returns {*[]|*}
          */
-        static getSignatureTypeOptionsBySystem(systemElement, groupId){
+        static getSignatureTypeOptionsBySystem(systemElement, groupId, granularK162 = false){
             let systemTypeId = systemElement.data('typeId');
             let areaId = Util.getAreaIdBySecurity(systemElement.data('security'));
-            let systemData = {statics: systemElement.data('statics')};
+            let systemData = {statics: systemElement.data('statics'), granularK162};
             return SystemSignatureModule.getSignatureTypeOptions(systemTypeId, areaId, groupId, systemData);
         }
 
@@ -2859,7 +2903,7 @@ define([
          * @param shattered
          * @returns {[]|*}
          */
-        static getSignatureTypeOptions(systemTypeId, areaId, groupId, {statics = null, shattered = false} = {}){
+        static getSignatureTypeOptions(systemTypeId, areaId, groupId, {statics = null, shattered = false, granularK162 = false} = {}){
             systemTypeId    = parseInt(systemTypeId || 0);
             areaId          = parseInt(areaId || 0);
             groupId         = parseInt(groupId || 0);
@@ -2950,21 +2994,6 @@ define([
                         }
                     }
 
-                    // add potential incoming holes
-                    let incomingWHData = [];
-                    for(let incomingKey in Init.incomingWormholes){
-                        if(
-                            incomingKey > 0 &&
-                            Init.incomingWormholes.hasOwnProperty(incomingKey)
-                        ){
-                            newSelectOptionsCount++;
-                            incomingWHData.push({value: newSelectOptionsCount, text: Init.incomingWormholes[incomingKey]});
-                        }
-                    }
-
-                    if(incomingWHData.length > 0){
-                        newSelectOptions.push({text: 'Incoming', children: incomingWHData});
-                    }
                 }else{
                     // groups without "children" (optgroup) should be sorted by "value"
                     // this is completely optional and not necessary!
@@ -2975,7 +3004,7 @@ define([
                 SystemSignatureModule.getCache('sigTypeOptions').set(cacheKey, newSelectOptions.slice(0));
             }
 
-            // static wormholes (DO NOT CACHE) (not all C2 WHs have the same statics..)
+            // static + incoming wormholes (DO NOT CACHE)
             if(groupId === 5){
                 // add static WH(s) for this system
                 if(statics){
@@ -2996,6 +3025,19 @@ define([
                     if(staticWHData.length > 0){
                         newSelectOptions.unshift({text: 'Static', children: staticWHData});
                     }
+                }
+
+                // add incoming K162 options (generic grouped or granular per-class)
+                let incomingSource = granularK162 ? Init.incomingWormholesSpecific : Init.incomingWormholesGeneric;
+                let incomingWHData = [];
+                for(let incomingKey in incomingSource){
+                    if(incomingKey > 0 && incomingSource.hasOwnProperty(incomingKey)){
+                        newSelectOptionsCount++;
+                        incomingWHData.push({value: newSelectOptionsCount, text: incomingSource[incomingKey]});
+                    }
+                }
+                if(incomingWHData.length > 0){
+                    newSelectOptions.push({text: 'Incoming', children: incomingWHData});
                 }
             }
 

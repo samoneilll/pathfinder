@@ -20,7 +20,7 @@ class AccessController extends Controller {
      * @return bool
      * @throws \Exception
      */
-    function beforeroute(\Base $f3, $params) : bool {
+    function beforeroute(\Base $f3,  $params) : bool {
         if($return = parent::beforeroute($f3, $params)){
             // Any route/endpoint of a child class of this one,
             // requires a valid logged in user!
@@ -61,7 +61,8 @@ class AccessController extends Controller {
         // log character access status in debug mode
         if(
             $loginStatus !== 'OK' &&
-            $f3->get('DEBUG') === 3
+            $f3->get('DEBUG') === 3 &&
+            is_object($character)
         ){
             self::getLogger('CHARACTER_ACCESS')->write(
                 sprintf(Pathfinder\CharacterModel::LOG_ACCESS,
@@ -111,9 +112,10 @@ class AccessController extends Controller {
                 'data' => [
                     'systems' => $mapData->systems,
                     'connections' => $mapData->connections,
+                    'groups' => $mapData->groups ?? [],
                 ]
             ];
-        }catch(\Exception $e){
+        }catch(\Exception){
 
         }
 

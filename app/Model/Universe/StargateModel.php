@@ -29,7 +29,7 @@ class StargateModel extends AbstractUniverseModel {
         'systemId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -41,7 +41,7 @@ class StargateModel extends AbstractUniverseModel {
         'typeId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\TypeModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\TypeModel::class,
             'constraint' => [
                 [
                     'table' => 'type',
@@ -53,7 +53,7 @@ class StargateModel extends AbstractUniverseModel {
         'destinationSystemId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -93,7 +93,7 @@ class StargateModel extends AbstractUniverseModel {
      * @param string $accessToken
      * @param array $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '',  $additionalOptions = []){
         $data = self::getF3()->ccpClient()->send('getUniverseStargate', $id);
 
         if(!empty($data)){
@@ -101,7 +101,7 @@ class StargateModel extends AbstractUniverseModel {
             if($this->get('systemId', true) !== $data['systemId']){
                 // new stargate or system changed
                 /**
-                 * @var $system SystemModel
+                 * @var SystemModel $system
                  */
                 $system = $this->rel('systemId');
                 $system->loadById($data['systemId'], $accessToken, $additionalOptions);
@@ -110,7 +110,7 @@ class StargateModel extends AbstractUniverseModel {
 
             if($this->get('typeId', true) !== $data['typeId']){
                 /**
-                 * @var $type TypeModel
+                 * @var TypeModel $type
                  */
                 $type = $this->rel('typeId');
                 $type->loadById($data['typeId'], $accessToken, $additionalOptions);
@@ -120,7 +120,7 @@ class StargateModel extends AbstractUniverseModel {
             if($this->get('destinationSystemId', true) !== $data['destination']->system_id){
                 // new stargate or destinationSystem changed
                 /**
-                 * @var $destinationSystem SystemModel
+                 * @var SystemModel $destinationSystem
                  */
                 $destinationSystem = $this->rel('destinationSystemId');
                 // no loadById() here! we don´t want to insert/update systems that do not exist yet

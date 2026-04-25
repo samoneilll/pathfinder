@@ -33,7 +33,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
         'mapId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\MapModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\MapModel::class,
             'constraint' => [
                 [
                     'table' => 'map',
@@ -44,7 +44,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
         'source' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -56,7 +56,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
         'target' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\SystemModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\SystemModel::class,
             'constraint' => [
                 [
                     'table' => 'system',
@@ -88,10 +88,10 @@ class ConnectionModel extends AbstractMapTrackingModel {
             'default' => null
         ],
         'signatures' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\SystemSignatureModel', 'connectionId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\SystemSignatureModel::class, 'connectionId']
         ],
         'connectionLog' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\ConnectionLogModel', 'connectionId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\ConnectionLogModel::class, 'connectionId']
         ]
     ];
 
@@ -119,6 +119,13 @@ class ConnectionModel extends AbstractMapTrackingModel {
     ];
 
     /**
+     * @return string[]
+     */
+    public static function getConnectionTypeWhitelist() : array {
+        return self::$connectionTypeWhitelist;
+    }
+
+    /**
      * get connection data
      * @param bool $addSignatureData
      * @param bool $addLogData
@@ -130,10 +137,10 @@ class ConnectionModel extends AbstractMapTrackingModel {
         $connectionData->source         = $this->source->id;
         $connectionData->target         = $this->target->id;
         $connectionData->scope          = $this->scope;
-        $connectionData->type           = (array)json_decode($this->get('type', true));
+        $connectionData->type           = (array)json_decode($this->get('type', true) ?? 'null');
         $connectionData->updated        = strtotime($this->updated);
         $connectionData->created        = strtotime($this->created);
-        $connectionData->eolUpdated     = strtotime($this->eolUpdated);
+        $connectionData->eolUpdated     = $this->eolUpdated ? strtotime($this->eolUpdated) : false;
 
         if( !empty($endpointsData = $this->getEndpointsData()) ){
             $connectionData->endpoints = $endpointsData;
@@ -156,10 +163,10 @@ class ConnectionModel extends AbstractMapTrackingModel {
 
     /**
      * setter for connection type
-     * @param $type
+     * @param  $type
      * @return array
      */
-    public function set_type($type){
+    public function set_type( $type){
         // remove unwanted types -> they should not be send from client
         // -> reset keys! otherwise JSON format results in object and not in array
         $type = array_values(array_intersect(array_unique((array)$type), self::$connectionTypeWhitelist));
@@ -180,13 +187,13 @@ class ConnectionModel extends AbstractMapTrackingModel {
 
     /**
      * setter for endpoints data (data for source/target endpoint)
-     * @param $endpointsData
+     * @param  $endpointsData
      */
-    public function set_endpoints($endpointsData){
-        if(!empty($endpointData = (array)$endpointsData['source'])){
+    public function set_endpoints( $endpointsData){
+        if(!empty($endpointData = (array)($endpointsData['source'] ?? []))){
             $this->setEndpointData('source', $endpointData);
         }
-        if(!empty($endpointData = (array)$endpointsData['target'])){
+        if(!empty($endpointData = (array)($endpointsData['target'] ?? []))){
             $this->setEndpointData('target', $endpointData);
         }
     }
@@ -194,11 +201,11 @@ class ConnectionModel extends AbstractMapTrackingModel {
     /**
      * set connection endpoint related data
      * @param string $label (source||target)
-     * @param array $endpointData
+     * @param  $endpointData
      */
-    public function setEndpointData(string $label, array $endpointData = []){
+    public function setEndpointData(string $label,  $endpointData = []){
         if($this->exists($field = $label . 'EndpointType')){
-            $types = empty($types = (array)$endpointData['types']) ? null : $types;
+            $types = empty($types = (array)($endpointData['types'] ?? [])) ? null : $types;
             if($this->$field != $types){
                 $this->$field = $types;
             }
@@ -236,6 +243,8 @@ class ConnectionModel extends AbstractMapTrackingModel {
             }elseif(
                 $this->source->isKspace() &&
                 $this->target->isKspace() &&
+                $this->source->systemId !== null &&
+                $this->target->systemId !== null &&
                 (new Route())->searchRoute($this->source->systemId, $this->target->systemId, 1)['routePossible']
             ){
                 $this->scope = 'stargate';
@@ -282,7 +291,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
      * can be overwritten
      * return false will stop any further action
      * @param \Exodus4D\Pathfinder\Model\AbstractModel $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      * @throws Exception\DatabaseException
      * @throws \Exception
@@ -290,7 +299,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
     public function beforeInsertEvent($self, $pkeys) : bool {
         // check for "default" connection type and add them if missing
         // -> get() with "true" returns RAW data! important for JSON table column check!
-        $types = (array)json_decode($this->get('type', true));
+        $types = (array)json_decode($this->get('type', true) ?? 'null');
         if(
             !$this->scope ||
             empty($types)
@@ -305,7 +314,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterInsertEvent($self, $pkeys){
         $self->clearCacheData();
@@ -316,7 +325,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterUpdateEvent($self, $pkeys){
         $self->clearCacheData();
@@ -327,7 +336,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
     public function afterEraseEvent($self, $pkeys){
         $self->clearCacheData();
@@ -478,7 +487,7 @@ class ConnectionModel extends AbstractMapTrackingModel {
      */
     public function getNewLog() : ConnectionLogModel {
         /**
-         * @var $log ConnectionLogModel
+         * @var ConnectionLogModel $log
          */
         $log = self::getNew('ConnectionLogModel');
         $log->connectionId = $this;

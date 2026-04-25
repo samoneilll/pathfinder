@@ -43,7 +43,7 @@ class CorporationModel extends AbstractUniverseModel {
         'factionId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\FactionModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\FactionModel::class,
             'constraint' => [
                 [
                     'table' => 'faction',
@@ -54,7 +54,7 @@ class CorporationModel extends AbstractUniverseModel {
         'allianceId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\AllianceModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\AllianceModel::class,
             'constraint' => [
                 [
                     'table' => 'alliance',
@@ -63,10 +63,10 @@ class CorporationModel extends AbstractUniverseModel {
             ]
         ],
         'sovereigntySystems' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel', 'corporationId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel::class, 'corporationId']
         ],
         'stations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StationModel', 'corporationId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StationModel::class, 'corporationId']
         ]
     ];
 
@@ -91,7 +91,7 @@ class CorporationModel extends AbstractUniverseModel {
             try{
                 $dateTime  = new \DateTime($date);
                 $date = $dateTime->format('Y-m-d H:i:s');
-            }catch(\Exception $e){
+            }catch(\Exception){
                 $date = null;
             }
         }
@@ -112,7 +112,7 @@ class CorporationModel extends AbstractUniverseModel {
 
             if($data['factionId']){
                 /**
-                 * @var $faction FactionModel
+                 * @var FactionModel $faction
                  */
                 $faction = $this->rel('factionId');
                 $faction->loadById($data['factionId'], $accessToken, $additionalOptions);
@@ -121,7 +121,7 @@ class CorporationModel extends AbstractUniverseModel {
 
             if($data['allianceId']){
                 /**
-                 * @var $alliance AllianceModel
+                 * @var AllianceModel $alliance
                  */
                 $alliance = $this->rel('allianceId');
                 $alliance->loadById($data['allianceId'], $accessToken, $additionalOptions);

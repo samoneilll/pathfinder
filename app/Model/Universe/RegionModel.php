@@ -31,10 +31,10 @@ class RegionModel extends AbstractUniverseModel {
             'type' => Schema::DT_TEXT
         ],
         'constellations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\ConstellationModel', 'regionId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\ConstellationModel::class, 'regionId']
         ],
         'systemNeighbours' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\SystemNeighbourModel', 'regionId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\SystemNeighbourModel::class, 'regionId']
         ]
     ];
 
@@ -72,7 +72,7 @@ class RegionModel extends AbstractUniverseModel {
             if(!empty($data)){
                 foreach((array)$data['constellations'] as $constellationsId){
                     /**
-                     * @var $constellation ConstellationModel
+                     * @var ConstellationModel $constellation
                      */
                     $constellation = $this->rel('constellations');
                     $constellation->loadById($constellationsId);

@@ -29,7 +29,7 @@ class SystemModel extends AbstractUniverseModel {
         'constellationId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\ConstellationModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\ConstellationModel::class,
             'constraint' => [
                 [
                     'table' => 'constellation',
@@ -41,7 +41,7 @@ class SystemModel extends AbstractUniverseModel {
         'starId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\StarModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\StarModel::class,
             'constraint' => [
                 [
                     'table' => 'star',
@@ -85,28 +85,28 @@ class SystemModel extends AbstractUniverseModel {
             'default' => 0
         ],
         'planets' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\PlanetModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\PlanetModel::class, 'systemId']
         ],
         'statics' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\SystemStaticModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\SystemStaticModel::class, 'systemId']
         ],
         'stargates' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StargateModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StargateModel::class, 'systemId']
         ],
         'stations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StationModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StationModel::class, 'systemId']
         ],
         'structures' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\StructureModel', 'systemId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\StructureModel::class, 'systemId']
         ],
         'neighbour' => [
-            'has-one' => ['Exodus4D\Pathfinder\Model\Universe\SystemNeighbourModel', 'systemId']
+            'has-one' => [\Exodus4D\Pathfinder\Model\Universe\SystemNeighbourModel::class, 'systemId']
         ],
         'sovereignty' => [
-            'has-one' => ['Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel', 'systemId']
+            'has-one' => [\Exodus4D\Pathfinder\Model\Universe\SovereigntyMapModel::class, 'systemId']
         ],
         'factionWar' => [
-            'has-one' => ['Exodus4D\Pathfinder\Model\Universe\FactionWarSystemModel', 'systemId']
+            'has-one' => [\Exodus4D\Pathfinder\Model\Universe\FactionWarSystemModel::class, 'systemId']
         ]
     ];
 
@@ -143,10 +143,8 @@ class SystemModel extends AbstractUniverseModel {
             // 'Shattered' systems have ONLY planets named with '(shattered)'
             // -> system 'Thera' has '(shattered)' AND other planets -> not shattered.
             // -> system 'J164104, 'J115422' - the only non-shattered wormholes which have a shattered planet -> not shattered.
-            $data->shattered        = count(array_filter($planetsData, function($planetData){
-                return property_exists($planetData, 'type') &&
-                    (strpos(strtolower($planetData->type->name), '(shattered)') !== false);
-            })) == count($planetsData);
+            $data->shattered        = count(array_filter($planetsData, fn($planetData) => property_exists($planetData, 'type') &&
+                (str_contains(strtolower((string) $planetData->type->name), '(shattered)')))) == count($planetsData);
         }
 
         if( !empty($staticsData = $this->getStaticsData()) ){
@@ -169,7 +167,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param $name
      * @return mixed
      */
-    public function set_name($name){
+    public function set_name(string $name){
         // name should never change
         // -> important for "Abyssal" systems where ESI don´t have correct system name
         if(!empty($this->name)){
@@ -183,7 +181,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param $secStatus
      * @return double
      */
-    public function set_securityStatus($secStatus){
+    public function set_securityStatus(string|int|float $secStatus){
         $secStatus = (double)$secStatus;
         // round for trueSec
         $positive = ($secStatus > 0);
@@ -229,7 +227,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param $effect
      * @return string|null
      */
-    public function set_effect($effect){
+    public function set_effect(string $effect){
         $effect = (string)$effect;
         return $effect ? : null;
     }
@@ -238,7 +236,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param array $sovData
      * @return bool true if sovereignty data changed
      */
-    public function updateSovereigntyData(array $sovData = []) : bool {
+    public function updateSovereigntyData( $sovData = []) : bool {
         $hasChanged     = false;
         $systemId       = (int)$sovData['systemId'];
         $factionId      = (int)$sovData['factionId'];
@@ -252,7 +250,7 @@ class SystemModel extends AbstractUniverseModel {
                 if($validSovData){
                     // at least one of these Ids must exist for a sovereignty relation
                     /**
-                     * @var $sovereignty SovereigntyMapModel
+                     * @var SovereigntyMapModel $sovereignty
                      */
                     if(!$sovereignty = $this->sovereignty){
                         // insert new sovereignty data
@@ -267,7 +265,7 @@ class SystemModel extends AbstractUniverseModel {
                         $sovData['corporationId'] = null;
 
                         /**
-                         * @var $faction FactionModel
+                         * @var FactionModel $faction
                          */
                         $faction = $sovereignty->rel('factionId');
                         $faction->loadById($factionId);
@@ -277,7 +275,7 @@ class SystemModel extends AbstractUniverseModel {
                         $sovData['factionId'] = null;
 
                         /**
-                         * @var $alliance AllianceModel|null
+                         * @var AllianceModel|null $alliance
                          */
                         $alliance = null;
                         if($allianceId){
@@ -286,7 +284,7 @@ class SystemModel extends AbstractUniverseModel {
                         }
 
                         /**
-                         * @var $corporation CorporationModel|null
+                         * @var CorporationModel|null $corporation
                          */
                         $corporation = null;
                         if($corporationId){
@@ -322,7 +320,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param array $fwData
      * @return bool true if faction warfare data changed
      */
-    public function updateFactionWarData(array $fwData = []) : bool {
+    public function updateFactionWarData( $fwData = []) : bool {
         $hasChanged         = false;
         $systemId           = (int)$fwData['systemId'];
         $ownerFactionId     = (int)$fwData['ownerFactionId'];
@@ -331,7 +329,7 @@ class SystemModel extends AbstractUniverseModel {
         if($this->valid()){
             if($systemId === $this->_id){
                 /**
-                 * @var $factionWar FactionWarSystemModel
+                 * @var FactionWarSystemModel $factionWar
                  */
                 if(!$factionWar = $this->factionWar){
                     // insert new faction war data
@@ -342,7 +340,7 @@ class SystemModel extends AbstractUniverseModel {
 
                 if($ownerFactionId){
                     /**
-                     * @var $ownerFaction FactionModel
+                     * @var FactionModel $ownerFaction
                      */
                     $ownerFaction = $factionWar->rel('ownerFactionId');
                     $ownerFaction->loadById($ownerFactionId);
@@ -351,7 +349,7 @@ class SystemModel extends AbstractUniverseModel {
 
                 if($occupierFactionId){
                     /**
-                     * @var $occupierFaction FactionModel
+                     * @var FactionModel $occupierFaction
                      */
                     $occupierFaction = $factionWar->rel('occupierFactionId');
                     $occupierFaction->loadById($occupierFactionId);
@@ -378,7 +376,7 @@ class SystemModel extends AbstractUniverseModel {
      * @param self $self
      * @param $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self,  $pkeys){
         // build search index
         $self->buildIndex();
         return parent::afterUpdateEvent($self, $pkeys);
@@ -393,7 +391,7 @@ class SystemModel extends AbstractUniverseModel {
 
         if($this->planets){
             /**
-             * @var $planet PlanetModel
+             * @var PlanetModel $planet
              */
             foreach($this->planets as &$planet){
                 $planetsData[] = $planet->getData();
@@ -411,7 +409,7 @@ class SystemModel extends AbstractUniverseModel {
 
         if($this->statics){
             /**
-             * @var $static SystemStaticModel
+             * @var SystemStaticModel $static
              */
             foreach($this->statics as &$static){
                 $staticsData[] = $static->getData();
@@ -429,7 +427,7 @@ class SystemModel extends AbstractUniverseModel {
 
         if($this->stargates){
             /**
-             * @var $stargate StargateModel
+             * @var StargateModel $stargate
              */
             foreach($this->stargates as &$stargate){
                 $stargatesData[] = $stargate->getData();
@@ -447,7 +445,7 @@ class SystemModel extends AbstractUniverseModel {
 
         if($this->stations){
             /**
-             * @var $station StationModel
+             * @var StationModel $station
              */
             foreach($this->stations as &$station){
                 $data = $station->getData();
@@ -490,12 +488,12 @@ class SystemModel extends AbstractUniverseModel {
      * @param string $accessToken
      * @param array $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '',  $additionalOptions = []){
         $data = self::getF3()->ccpClient()->send('getUniverseSystem', $id);
 
         if(!empty($data)){
             /**
-             * @var $constellation ConstellationModel
+             * @var ConstellationModel $constellation
              */
             $constellation = $this->rel('constellationId');
             $constellation->loadById($data['constellationId'], $accessToken, $additionalOptions);
@@ -504,7 +502,7 @@ class SystemModel extends AbstractUniverseModel {
             // starId is optional since ESI v4 (e.g. Abyssal systems)
             if($data['starId']){
                 /**
-                 * @var $star StarModel
+                 * @var StarModel $star
                  */
                 $star = $this->rel('starId');
                 $star->loadById($data['starId'], $accessToken, $additionalOptions);
@@ -526,7 +524,7 @@ class SystemModel extends AbstractUniverseModel {
                 // planets are optional since ESI v4 (e.g. Abyssal systems)
                 foreach((array)$data['planets'] as $planetData){
                     /**
-                     * @var $planet PlanetModel
+                     * @var PlanetModel $planet
                      */
                     $planet = $this->rel('planets');
                     $planet->loadById($planetData->planet_id);
@@ -546,7 +544,7 @@ class SystemModel extends AbstractUniverseModel {
             if($data['stargates']){
                 foreach((array)$data['stargates'] as $stargateId){
                     /**
-                     * @var $stargate StargateModel
+                     * @var StargateModel $stargate
                      */
                     $stargate = $this->rel('stargates');
                     $stargate->loadById($stargateId);
@@ -565,7 +563,7 @@ class SystemModel extends AbstractUniverseModel {
             if($data['stations']){
                 foreach((array)$data['stations'] as $stationId){
                     /**
-                     * @var $station SystemModel
+                     * @var SystemModel $station
                      */
                     $station = $this->rel('stations');
                     $station->loadById($stationId);

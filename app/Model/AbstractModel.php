@@ -18,7 +18,48 @@ use Exodus4D\Pathfinder\Db\Sql\Mysql;
 use Exodus4D\Pathfinder\Exception\ValidationException;
 use Exodus4D\Pathfinder\Exception\DatabaseException;
 
-abstract class AbstractModel extends Cortex {
+/**
+ * @property int $_id
+ * @property string|int|null $id
+ * @property string $name
+ * @property string $description
+ * @property int $typeId
+ * @property int $characterId
+ * @property int $corporationId
+ * @property int $allianceId
+ * @property int $mapId
+ * @property int $systemId
+ * @property int $scopeId
+ * @property int $roleId
+ * @property int $rightId
+ * @property int $db
+ * @property int $table
+ * @property int $fieldConf
+ * @property int $shipTypeId
+ * @property int $shipMass
+ * @property string $shipTypeName
+ * @property int $structureId
+ * @property int $updated
+ * @property int $created
+ * @property int $updatedCharacterId
+ * @property mixed $type
+ * @property mixed $scope
+ * @property int $shared
+ * @property int $security
+ * @property float $trueSec
+ * @property string|null $target
+ * @property bool $trackAbyssalJumps
+ * @property float $posX
+ * @property float $posY
+ * @property int $stationId
+ * @property int $cloneLocationId
+ * @property string $cloneLocationType
+ * @property int $cloneLocationTypeId
+ * @property int $lastExecStart
+ * @property int $lastExecEnd
+ * @property mixed $userCharacter
+ */
+abstract class AbstractModel extends Cortex implements \Stringable {
 
     /**
      * alias name for database connection
@@ -165,29 +206,23 @@ abstract class AbstractModel extends Cortex {
         parent::__construct($db, $table, $fluid, $ttl);
 
         // insert events ------------------------------------------------------------------------------------
-        $this->beforeinsert(function($self, $pkeys){
-            return $self->beforeInsertEvent($self, $pkeys);
-        });
+        $this->beforeinsert(fn($self, $pkeys) => $self->beforeInsertEvent($self, $pkeys));
 
-        $this->afterinsert(function($self, $pkeys){
+        $this->afterinsert(function($self, $pkeys): void{
             $self->afterInsertEvent($self, $pkeys);
         });
 
         // update events ------------------------------------------------------------------------------------
-        $this->beforeupdate(function($self, $pkeys){
-            return $self->beforeUpdateEvent($self, $pkeys);
-        });
+        $this->beforeupdate(fn($self, $pkeys) => $self->beforeUpdateEvent($self, $pkeys));
 
-        $this->afterupdate(function($self, $pkeys){
+        $this->afterupdate(function($self, $pkeys): void{
             $self->afterUpdateEvent($self, $pkeys);
         });
 
         // erase events -------------------------------------------------------------------------------------
-        $this->beforeerase(function($self, $pkeys){
-            return $self->beforeEraseEvent($self, $pkeys);
-        });
+        $this->beforeerase(fn($self, $pkeys) => $self->beforeEraseEvent($self, $pkeys));
 
-        $this->aftererase(function($self, $pkeys){
+        $this->aftererase(function($self, $pkeys): void{
             $self->afterEraseEvent($self, $pkeys);
         });
     }
@@ -311,13 +346,13 @@ abstract class AbstractModel extends Cortex {
     /**
      * validates a table column based on validation settings
      * @param string $key
-     * @param $val
+     * @param mixed $val
      * @return bool
      */
-    protected function validateField(string $key, $val) : bool {
+    protected function validateField(string $key, mixed $val) : bool {
         $valid = true;
-        if($fieldConf = $this->fieldConf[$key]){
-            if($method = $this->fieldConf[$key]['validate']){
+        if($fieldConf = $this->fieldConf[$key] ?? null){
+            if($method = $fieldConf['validate'] ?? null){
                 if( !is_string($method)){
                     $method = $key;
                 }
@@ -326,7 +361,7 @@ abstract class AbstractModel extends Cortex {
                     // validate $key (column) with this method...
                     $valid = $this->$method($key, $val);
                 }else{
-                    self::getF3()->error(501, 'Method ' . get_class($this) . '->' . $method . '() is not implemented');
+                    self::getF3()->error(501, 'Method ' . static::class . '->' . $method . '() is not implemented');
                 }
             }
         }
@@ -336,22 +371,22 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * validates a model field to be a valid relational model
-     * @param $key
-     * @param $val
+     * @param string|int $key
+     * @param mixed $val
      * @return bool
      * @throws ValidationException
      */
-    protected function validate_notDry($key, $val) : bool {
+    protected function validate_notDry(string|int $key, mixed $val) : bool {
         $valid = true;
         if($colConf = $this->fieldConf[$key]){
             if(isset($colConf['belongs-to-one'])){
-                if( (is_int($val) || ctype_digit($val)) && (int)$val > 0){
+                if( (is_int($val) || (is_string($val) && ctype_digit($val))) && (int)$val > 0){
                     $valid = true;
                 }elseif( is_a($val, $colConf['belongs-to-one']) && !$val->dry() ){
                     $valid = true;
                 }else{
                     $valid = false;
-                    $msg = 'Validation failed: "' . get_class($this) . '->' . $key . '" must be a valid instance of ' . $colConf['belongs-to-one'];
+                    $msg = 'Validation failed: "' . static::class . '->' . $key . '" must be a valid instance of ' . $colConf['belongs-to-one'];
                     $this->throwValidationException($key, $msg);
                 }
             }
@@ -362,17 +397,17 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * validates a model field to be not empty
-     * @param $key
-     * @param $val
+     * @param string|int $key
+     * @param mixed $val
      * @return bool
      */
-    protected function validate_notEmpty($key, $val) : bool {
+    protected function validate_notEmpty(string|int $key, mixed $val) : bool {
         $valid = false;
         if($colConf = $this->fieldConf[$key]){
             switch($colConf['type']){
                 case Schema::DT_INT:
                 case Schema::DT_FLOAT:
-                    if( (is_int($val) || ctype_digit($val)) && (int)$val > 0){
+                    if( (is_int($val) || ctype_digit((string) $val)) && (int)$val > 0){
                         $valid = true;
                     }
                     break;
@@ -442,11 +477,11 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * update/set the getData() cache for this object
-     * @param $cacheData
+     * @param mixed $cacheData
      * @param string $dataCacheKeyPrefix
      * @param int $data_ttl
      */
-    public function updateCacheData($cacheData, string $dataCacheKeyPrefix = '', int $data_ttl = self::DEFAULT_CACHE_TTL){
+    public function updateCacheData(mixed $cacheData, string $dataCacheKeyPrefix = '', int $data_ttl = self::DEFAULT_CACHE_TTL){
         $cacheDataTmp = (array)$cacheData;
 
         // check if data should be cached
@@ -481,9 +516,9 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * unset object cached data (if exists)
-     * @param $cacheKey
+     * @param string|null $cacheKey
      */
-    private function clearCache($cacheKey){
+    private function clearCache(string|null $cacheKey){
         if(!empty($cacheKey)){
             $f3 = self::getF3();
             if($f3->exists($cacheKey)){
@@ -546,13 +581,13 @@ abstract class AbstractModel extends Cortex {
     /**
      * get dataSet by foreign column (single result)
      * @param string $key
-     * @param $value
+     * @param mixed $value
      * @param array $options
      * @param int $ttl
      * @param bool $isActive
      * @return bool
      */
-    public function getByForeignKey(string $key, $value, array $options = [], int $ttl = 0, bool $isActive = true) : bool {
+    public function getByForeignKey(string $key, mixed $value, array $options = [], int $ttl = 0, bool $isActive = true) : bool {
         $filters = [self::getFilter($key, $value)];
 
         if($isActive && $this->exists('active')){
@@ -574,7 +609,7 @@ abstract class AbstractModel extends Cortex {
     /**
      * get first model from a relation that matches $filter
      * @param string $key
-     * @param array $filter
+     * @param  $filter
      * @return mixed|null
      */
     protected function relFindOne(string $key, array $filter){
@@ -585,12 +620,14 @@ abstract class AbstractModel extends Cortex {
             if(array_key_exists($key, $fieldConf)){
                 if(array_key_exists($type = 'has-many', $fieldConf[$key])){
                     $fromConf = $fieldConf[$key][$type];
-                    $relFilter = self::getFilter($fromConf[1], $this->getRaw($fromConf['relField']));
+                    if(is_array($fromConf) && isset($fromConf[1]) && isset($fromConf['relField'])){
+                        $relFilter = self::getFilter($fromConf[1], $this->getRaw($fromConf['relField']));
+                    }
                 }
             }
 
             /**
-             * @var $relModel self|bool
+             * @var self|bool $relModel
              */
             $relModel = $this->rel($key)->findone($this->mergeFilter([$relFilter, $this->mergeWithRelFilter($key, $filter)]));
         }
@@ -601,7 +638,7 @@ abstract class AbstractModel extends Cortex {
     /**
      * get all models from a relation that match $filter
      * @param string $key
-     * @param array $filter
+     * @param  $filter
      * @return CortexCollection|null
      */
     protected function relFind(string $key, array $filter) : ?CortexCollection {
@@ -612,12 +649,14 @@ abstract class AbstractModel extends Cortex {
             if(array_key_exists($key, $fieldConf)){
                 if(array_key_exists($type = 'has-many', $fieldConf[$key])){
                     $fromConf = $fieldConf[$key][$type];
-                    $relFilter = self::getFilter($fromConf[1], $this->getRaw($fromConf['relField']));
+                    if(is_array($fromConf) && isset($fromConf[1]) && isset($fromConf['relField'])){
+                        $relFilter = self::getFilter($fromConf[1], $this->getRaw($fromConf['relField']));
+                    }
                 }
             }
 
             /**
-             * @var $relModel CortexCollection|bool
+             * @var CortexCollection|bool $relModel
              */
             $relModel = $this->rel($key)->find($this->mergeFilter([$relFilter, $this->mergeWithRelFilter($key, $filter)]));
         }
@@ -630,10 +669,10 @@ abstract class AbstractModel extends Cortex {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      */
-    public function beforeInsertEvent($self, $pkeys) : bool {
+    public function beforeInsertEvent(self $self,  $pkeys) : bool {
         if($this->exists('updated')){
             $this->touch('updated');
         }
@@ -645,9 +684,9 @@ abstract class AbstractModel extends Cortex {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent(self $self,  $pkeys){
     }
 
     /**
@@ -655,10 +694,10 @@ abstract class AbstractModel extends Cortex {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      */
-    public function beforeUpdateEvent($self, $pkeys) : bool {
+    public function beforeUpdateEvent(self $self,  $pkeys) : bool {
         return true;
     }
 
@@ -667,19 +706,19 @@ abstract class AbstractModel extends Cortex {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent(self $self,  $pkeys){
     }
 
     /**
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      * @return bool
      */
-    public function beforeEraseEvent($self, $pkeys) : bool {
+    public function beforeEraseEvent(self $self,  $pkeys) : bool {
         return true;
     }
 
@@ -687,9 +726,9 @@ abstract class AbstractModel extends Cortex {
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param $pkeys
+     * @param array $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent(self $self,  $pkeys){
     }
 
     /**
@@ -720,18 +759,18 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * format dateTime column
-     * @param $column
+     * @param string $column
      * @param string $format
      * @return false|null|string
      */
-    public function getFormattedColumn($column, $format = 'Y-m-d H:i'){
+    public function getFormattedColumn(string $column, string $format = 'Y-m-d H:i'){
         return $this->get($column) ? date($format, strtotime( $this->get($column) )) : null;
     }
 
     /**
      * export and download table data as *.csv
      * this is primarily used for static tables
-     * @param array $fields
+     * @param  $fields
      * @return bool
      */
     public function exportData(array $fields = []) : bool {
@@ -739,6 +778,9 @@ abstract class AbstractModel extends Cortex {
 
         if(static::$enableDataExport){
             $tableModifier = static::getTableModifier();
+            if(!$tableModifier){
+                return [];
+            }
             $headers = $tableModifier->getCols();
 
             if($fields){
@@ -814,7 +856,7 @@ abstract class AbstractModel extends Cortex {
             $filePath = self::getF3()->get('EXPORT') . 'csv/' . $fileName . '.csv';
             if(is_file($filePath)){
                 $handle = @fopen($filePath, 'r');
-                $keys = array_map('lcfirst', fgetcsv($handle, 0, ';'));
+                $keys = array_map(lcfirst(...), fgetcsv($handle, 0, ';'));
                 $keys = $rtrim($keys);
 
                 if(count($keys) > 0){
@@ -845,7 +887,7 @@ abstract class AbstractModel extends Cortex {
         ){
             // import row data
             $status = $this->importStaticData($tableData);
-            $this->getF3()->status(202);
+            static::getF3()->status(202);
         }
 
         return $status;
@@ -854,7 +896,7 @@ abstract class AbstractModel extends Cortex {
     /**
      * insert/update static data into this table
      * WARNING: rows will be deleted if not part of $tableData !
-     * @param array $tableData
+     * @param  $tableData
      * @return array
      */
     protected function importStaticData(array $tableData = []) : array {
@@ -864,10 +906,16 @@ abstract class AbstractModel extends Cortex {
         $deletedCount = 0;
 
         $tableModifier = static::getTableModifier();
+        if(!$tableModifier){
+            return [];
+        }
         $fields = $tableModifier->getCols();
 
         foreach($tableData as $rowData){
             // search for existing record and update columns
+            if(!isset($rowData['id'])){
+                continue; // skip rows without id
+            }
             $this->getById($rowData['id'], 0);
             if($this->dry()){
                 $addedCount++;
@@ -933,16 +981,18 @@ abstract class AbstractModel extends Cortex {
         $outdated = true;
         if($this->valid()){
             try{
-                $timezone = $this->getF3()->get('getTimeZone')();
+                $timezone = static::getF3()->get('getTimeZone')();
                 $currentTime = new \DateTime('now', $timezone);
                 $updateTime = \DateTime::createFromFormat(
                     'Y-m-d H:i:s',
                     $this->updated,
                     $timezone
                 );
-                $interval = $updateTime->diff($currentTime);
-                if($interval->days < self::CACHE_MAX_DAYS){
-                    $outdated = false;
+                if($updateTime){
+                    $interval = $updateTime->diff($currentTime);
+                    if($interval->days < self::CACHE_MAX_DAYS){
+                        $outdated = false;
+                    }
                 }
             }catch(\Exception $e){
                 self::getF3()->error($e->getCode(), $e->getMessage(), $e->getTrace());
@@ -971,7 +1021,7 @@ abstract class AbstractModel extends Cortex {
      * @return string
      */
     public function __toString() : string {
-        return $this->getTable();
+        return (string) $this->getTable();
     }
 
     /**
@@ -993,10 +1043,10 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * get model data as array
-     * @param $data
+     * @param mixed $data
      * @return array
      */
-    public static function toArray($data) : array {
+    public static function toArray(mixed $data) : array {
         return json_decode(json_encode($data), true);
     }
 
@@ -1022,10 +1072,10 @@ abstract class AbstractModel extends Cortex {
      * This can result in high RAM usage if a great number of key->values should be stored in Cache
      * (like the search index for system data)
      * @param string $key
-     * @param $data
+     * @param mixed $data
      * @param int $ttl
      */
-    public static function setCacheValue(string $key, $data, int $ttl = 0){
+    public static function setCacheValue(string $key, mixed $data, int $ttl = 0){
         $cache = \Cache::instance();
         $cache->set(self::getF3()->hash($key).'.var', $data, $ttl);
     }
@@ -1065,7 +1115,7 @@ abstract class AbstractModel extends Cortex {
     /**
      * Check whether a (multi)-column index exists or not on a table
      * related to this model
-     * @param array $columns
+     * @param  $columns
      * @return bool|array
      */
     public static function indexExists(array $columns = []){
@@ -1073,10 +1123,12 @@ abstract class AbstractModel extends Cortex {
         $df = parent::resolveConfiguration();
 
         $check = false;
-        $indexKey = $df['table'] . '___' . implode('__', $columns);
-        $indexList = $tableModifier->listIndex();
-        if(array_key_exists( $indexKey, $indexList)){
-            $check = $indexList[$indexKey];
+        if($tableModifier){
+            $indexKey = $df['table'] . '___' . implode('__', $columns);
+            $indexList = $tableModifier->listIndex();
+            if(array_key_exists( $indexKey, $indexList)){
+                $check = $indexList[$indexKey];
+            }
         }
 
         return $check;
@@ -1084,16 +1136,16 @@ abstract class AbstractModel extends Cortex {
 
     /**
      * set a multi-column index for this table
-     * @param array $columns Column(s) to be indexed
+     * @param  $columns Column(s) to be indexed
      * @param bool $unique Unique index
      * @param int $length index length for text fields in mysql
      * @return bool
      */
-    public static function setMultiColumnIndex(array $columns = [], $unique = false, $length = 20) : bool {
+    public static function setMultiColumnIndex(array $columns = [], bool $unique = false, int $length = 20) : bool {
         $status = false;
         $tableModifier = self::getTableModifier();
 
-        if( self::indexExists($columns) === false ){
+        if($tableModifier && self::indexExists($columns) === false ){
             $tableModifier->addIndex($columns, $unique, $length);
             $buildStatus = $tableModifier->build();
             if($buildStatus === 0){
@@ -1111,7 +1163,7 @@ abstract class AbstractModel extends Cortex {
      * @return AbstractModel|null
      * @throws \Exception
      */
-    public static function getNew(string $className, int $ttl = self::DEFAULT_TTL) : ?self {
+    public static function getNew(string $className, int $ttl = self::DEFAULT_TTL) : self {
         $model = null;
         $className = self::refClass(static::class)->getNamespaceName() . '\\' . $className;
         if(class_exists($className)){

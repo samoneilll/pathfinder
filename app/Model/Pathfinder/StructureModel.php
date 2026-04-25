@@ -36,7 +36,7 @@ class StructureModel extends AbstractPathfinderModel {
         'corporationId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\CorporationModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\CorporationModel::class,
             'constraint' => [
                 [
                     'table' => 'corporation',
@@ -53,7 +53,7 @@ class StructureModel extends AbstractPathfinderModel {
             'type' => Schema::DT_INT,
             'default' => 1,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\StructureStatusModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\StructureStatusModel::class,
             'constraint' => [
                 [
                     'table' => 'structure_status',
@@ -72,7 +72,7 @@ class StructureModel extends AbstractPathfinderModel {
             'default' => ''
         ],
         'structureCorporations' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Pathfinder\CorporationStructureModel', 'structureId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Pathfinder\CorporationStructureModel::class, 'structureId']
         ]
     ];
 
@@ -80,7 +80,7 @@ class StructureModel extends AbstractPathfinderModel {
      * set data by associative array
      * @param array $data
      */
-    public function setData(array $data){
+    public function setData( $data){
         $this->copyfrom($data, ['structureId', 'corporationId', 'systemId', 'statusId', 'name', 'description']);
     }
     /**
@@ -117,7 +117,7 @@ class StructureModel extends AbstractPathfinderModel {
      * @param $structureId
      * @return int|null
      */
-    public function set_structureId($structureId) : ?int {
+    public function set_structureId(int $structureId) : ?int {
         $structureId = (int)$structureId;
         return $structureId ? : null;
     }
@@ -253,7 +253,7 @@ class StructureModel extends AbstractPathfinderModel {
      */
     protected function getUniverseTypeData(int $structureId) : \stdClass {
         /**
-         * @var $type Universe\TypeModel
+         * @var Universe\TypeModel $type
          */
         $type = Universe\AbstractUniverseModel::getNew('TypeModel');
         $type->getById($structureId);

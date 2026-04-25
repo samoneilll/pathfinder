@@ -64,15 +64,13 @@ abstract class AbstractPathfinderModel extends AbstractModel {
 
         if($this->enableActivityLogging){
             // filter fields, where "activity" (changes) should be logged
-            $fieldConf = array_filter($this->fieldConf, function($fieldConf, $key){
-                return isset($fieldConf['activity-log']) ? (bool)$fieldConf['activity-log'] : false;
-            }, ARRAY_FILTER_USE_BOTH);
+            $fieldConf = array_filter($this->fieldConf, fn($fieldConf, $key) => isset($fieldConf['activity-log']) ? (bool)$fieldConf['activity-log'] : false, ARRAY_FILTER_USE_BOTH);
 
             if($fieldKeys = array_keys($fieldConf)){
                 // model has fields where changes should be logged
                 $schema = $this->getMapper()->schema();
                 foreach($fieldKeys as $key){
-                    if($this->changed($key)){
+                    if(isset($schema[$key]) && $this->changed($key)){
                         $changes[$key] = [
                             'old' => $schema[$key]['initial'],
                             'new' => $schema[$key]['value']

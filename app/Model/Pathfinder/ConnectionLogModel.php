@@ -30,7 +30,7 @@ class ConnectionLogModel extends AbstractPathfinderModel {
         'connectionId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Pathfinder\ConnectionModel::class,
             'constraint' => [
                 [
                     'table' => 'connection',
@@ -77,7 +77,7 @@ class ConnectionLogModel extends AbstractPathfinderModel {
      * set data by associative array
      * @param array $data
      */
-    public function setData(array $data){
+    public function setData( $data){
         $this->copyfrom($data, ['shipTypeId', 'shipTypeName', 'shipMass', 'characterId', 'characterName']);
     }
 

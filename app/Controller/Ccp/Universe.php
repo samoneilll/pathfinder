@@ -62,7 +62,7 @@ class Universe extends Controller\Controller {
      * @return array
      * @throws \Exception
      */
-    protected function setupCategories(array $categoriesWhitelist = []) : array {
+    protected function setupCategories( $categoriesWhitelist = []) : array {
         $info = [];
         $categoryIds = Model\Universe\CategoryModel::getUniverseCategories();
         $categoryIds = array_intersect($categoriesWhitelist, $categoryIds);
@@ -86,7 +86,7 @@ class Universe extends Controller\Controller {
 
         if($categoryId){
             /**
-             * @var $category Model\Universe\CategoryModel
+             * @var Model\Universe\CategoryModel $category
              */
             $category = Model\Universe\AbstractUniverseModel::getNew('CategoryModel');
             $category->loadById($categoryId);
@@ -106,7 +106,7 @@ class Universe extends Controller\Controller {
      * @return array
      * @throws \Exception
      */
-    protected function setupGroups(array $groupsWhitelist = []) : array {
+    protected function setupGroups( $groupsWhitelist = []) : array {
         $info = [];
         $groupIds = Model\Universe\GroupModel::getUniverseGroups();
         $groupIds = array_intersect($groupsWhitelist, $groupIds);
@@ -130,7 +130,7 @@ class Universe extends Controller\Controller {
 
         if($groupId){
             /**
-             * @var $group Model\Universe\GroupModel
+             * @var Model\Universe\GroupModel $group
              */
             $group = Model\Universe\AbstractUniverseModel::getNew('GroupModel');
             $group->storeDogmaAttributes = $storeDogmaAttributes;
@@ -156,7 +156,7 @@ class Universe extends Controller\Controller {
         $systemIds = array_slice($systemIds, $offset, $length);
 
         /**
-         * @var $system Model\Universe\SystemModel
+         * @var Model\Universe\SystemModel $system
          */
         $system = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
         $indexData = [];
@@ -190,7 +190,7 @@ class Universe extends Controller\Controller {
         $systemIds = [];
         if($ignoreCache || !$f3->exists(self::SESSION_KEY_SYSTEM_IDS, $systemIds)){
             /**
-             * @var $system Model\Universe\SystemModel
+             * @var Model\Universe\SystemModel $system
              */
             $system = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
             if($systems = $system->find()){
@@ -251,7 +251,7 @@ class Universe extends Controller\Controller {
             if(!$data = $this->get($cacheKeyRow)){
                 // .. try to build index
                 /**
-                 * @var $system Model\Universe\SystemModel
+                 * @var Model\Universe\SystemModel $system
                  */
                 $system = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
                 if($system->getById($systemId)){
@@ -270,7 +270,7 @@ class Universe extends Controller\Controller {
     private function get(string $cacheKey) : ?\stdClass {
         $data = null;
         if($this->getF3()->exists($cacheKey,$value)) {
-            if(is_string($value) && strpos($value, Model\Universe\AbstractUniverseModel::CACHE_KEY_PREFIX) === 0) {
+            if(is_string($value) && str_starts_with($value, Model\Universe\AbstractUniverseModel::CACHE_KEY_PREFIX)) {
                 // value references an other cacheKey that holds data
                 return $this->get($value);
             }elseif( !empty((array)$value) ){
@@ -287,7 +287,7 @@ class Universe extends Controller\Controller {
      */
     private function clear(string $cacheKey){
         if($this->getF3()->exists($cacheKey,$value)) {
-            if(is_string($value) && strpos($value, Model\Universe\AbstractUniverseModel::CACHE_KEY_PREFIX) === 0) {
+            if(is_string($value) && str_starts_with($value, Model\Universe\AbstractUniverseModel::CACHE_KEY_PREFIX)) {
                 // value references another cacheKey -> clear that one as well
                 $this->clear($value);
             }
@@ -304,7 +304,7 @@ class Universe extends Controller\Controller {
      * @param bool $strict
      * @return array
      */
-    public static function searchUniverseNameData(array $categories, string $search, int $characterId, string $accessToken, bool $strict = false) : array {
+    public static function searchUniverseNameData( $categories, string $search, int $characterId, string $accessToken, bool $strict = false) : array {
         $f3 = \Base::instance();
         $universeNameData = [];
         if( !empty($categories) && !empty($search)){

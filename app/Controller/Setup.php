@@ -45,14 +45,7 @@ class Setup extends Controller {
         'CCP_SSO_SECRET_KEY' => [],
         'CCP_SSO_DOWNTIME' => [],
         'CCP_ESI_URL' => [],
-        'CCP_ESI_DATASOURCE' => [],
-        'SMTP_HOST' => [],
-        'SMTP_PORT' => [],
-        'SMTP_SCHEME' => [],
-        'SMTP_USER' => [],
-        'SMTP_PASS' => [],
-        'SMTP_FROM' => [],
-        'SMTP_ERROR' => []
+        'CCP_ESI_DATASOURCE' => []
     ];
 
     /**
@@ -92,6 +85,7 @@ class Setup extends Controller {
                 'Model\Pathfinder\CharacterAuthenticationModel',
                 'Model\Pathfinder\CharacterLogModel',
 
+                'Model\Pathfinder\MapGroupModel',
                 'Model\Pathfinder\SystemModel',
 
                 'Model\Pathfinder\ConnectionModel',
@@ -172,11 +166,11 @@ class Setup extends Controller {
         // js view (file)
         $f3->set('tplJsView', 'setup');
 
+        if(!$f3->exists('tplCharacterId')) $f3->set('tplCharacterId', null);
+
         $f3->set('tplCounter', $this->counter());
 
-        $f3->set('tplConvertBytes', function(){
-            return call_user_func_array([Number::instance(), 'bytesToString'], func_get_args());
-        });
+        $f3->set('tplConvertBytes', fn() => call_user_func_array([Number::instance(), 'bytesToString'], func_get_args()));
 
         // render view
         echo \Template::instance()->render( Config::getPathfinderData('view.index') );
@@ -195,27 +189,29 @@ class Setup extends Controller {
         // enables automatic column fix
         $fixColumns = false;
 
-        switch($params['action']){
+        switch($params['action'] ?? null){
             case 'createDB':
-                $this->createDB($f3, $params['db']);
+                if(isset($params['db'])) $this->createDB($f3, $params['db']);
                 break;
             case 'bootstrapDB':
-                $this->bootstrapDB($f3, $params['db']);
+                if(isset($params['db'])) $this->bootstrapDB($f3, $params['db']);
                 break;
             case 'fixCols':
                 $fixColumns = true;
                 break;
             case 'importTable':
-                $this->importTable($params['model']);
+                if(isset($params['model'])) $this->importTable($params['model']);
                 break;
             case 'exportTable':
-                $this->exportTable($params['model']);
+                if(isset($params['model'])) $this->exportTable($params['model']);
                 break;
             case 'clearFiles':
-                $this->clearFiles((string)$params['path']);
+                if(isset($params['path'])) $this->clearFiles((string)$params['path']);
                 break;
             case 'flushRedisDb':
-                $this->flushRedisDb((string)$params['host'], (int)$params['port'], (int)$params['db']);
+                if(isset($params['host'], $params['port'], $params['db'])) {
+                    $this->flushRedisDb((string)$params['host'], (int)$params['port'], (int)$params['db']);
+                }
                 break;
             case 'invalidateCookies':
                 $this->invalidateCookies($f3);
@@ -244,6 +240,7 @@ class Setup extends Controller {
         $f3->set('checkPHPConfig', $this->checkPHPConfig($f3));
 
         // Settings ---------------------------------------------------------------------------------------------------
+        $f3->set('isDockerEnvironment', $this->isDockerEnvironment());
         // Pathfinder environment config
         $f3->set('environmentInformation', $this->getEnvironmentInformation($f3));
 
@@ -311,6 +308,15 @@ class Setup extends Controller {
      * @param \Base $f3
      * @return array
      */
+    /**
+     * Detect whether the app is running inside a Docker container.
+     * Docker always creates /.dockerenv in the container root.
+     * @return bool
+     */
+    protected function isDockerEnvironment() : bool {
+        return file_exists('/.dockerenv');
+    }
+
     protected function getEnvironmentInformation(\Base $f3) : array {
         $environmentData = [];
         // exclude some sensitive data (e.g. database, passwords)
@@ -320,7 +326,7 @@ class Setup extends Controller {
         ];
 
         // obscure some values
-        $obscureVars = ['CCP_SSO_CLIENT_ID', 'CCP_SSO_SECRET_KEY', 'SMTP_PASS'];
+        $obscureVars = ['CCP_SSO_CLIENT_ID', 'CCP_SSO_SECRET_KEY'];
 
         foreach($this->environmentVars as $var => $options){
             if( !in_array($var, $excludeVars) ){
@@ -404,7 +410,7 @@ class Setup extends Controller {
                 'value' => $f3->get('TEMP'),
                 'check' => true,
                 'tooltip' => 'Temporary folder for pre compiled templates.',
-                'chmod' => Util::filesystemInfo($f3->get('TEMP'))['chmod']
+                'chmod' => Util::filesystemInfo($f3->get('TEMP'))['chmod'] ?? ''
             ],
             'CACHE' => [
                 'label' => 'CACHE',
@@ -412,7 +418,7 @@ class Setup extends Controller {
                 'check' => true,
                 'tooltip' => 'Cache backend. Support for Redis, Memcache, APC, WinCache, XCache and a filesystem-based (default) cache.',
                 'chmod' =>  ((Config::parseDSN($f3->get('CACHE'), $confCache)) && $confCache['type'] == 'folder') ?
-                    Util::filesystemInfo((string)$confCache['folder'])['chmod'] : ''
+                    (Util::filesystemInfo((string)$confCache['folder'])['chmod'] ?? '') : ''
             ],
             'API_CACHE' => [
                 'label' => 'API_CACHE',
@@ -420,42 +426,42 @@ class Setup extends Controller {
                 'check' => true,
                 'tooltip' => 'Cache backend for API related cache data. Support for Redis and a filesystem-based (default) cache.',
                 'chmod' => ((Config::parseDSN($f3->get('API_CACHE'), $confCacheApi)) && $confCacheApi['type'] == 'folder') ?
-                    Util::filesystemInfo((string)$confCacheApi['folder'])['chmod'] : ''
+                    (Util::filesystemInfo((string)$confCacheApi['folder'])['chmod'] ?? '') : ''
             ],
             'LOGS' => [
                 'label' => 'LOGS',
                 'value' => $f3->get('LOGS'),
                 'check' => true,
                 'tooltip' => 'Folder for pathfinder logs (e.g. cronjob-, error-logs, ...).',
-                'chmod' => Util::filesystemInfo($f3->get('LOGS'))['chmod']
+                'chmod' => Util::filesystemInfo($f3->get('LOGS'))['chmod'] ?? ''
             ],
             'UI' => [
                 'label' => 'UI',
                 'value' => $f3->get('UI'),
                 'check' => true,
                 'tooltip' => 'Folder for public accessible resources (templates, js, css, images,..).',
-                'chmod' => Util::filesystemInfo($f3->get('UI'))['chmod']
+                'chmod' => Util::filesystemInfo($f3->get('UI'))['chmod'] ?? ''
             ],
             'AUTOLOAD' => [
                 'label' => 'AUTOLOAD',
                 'value' => $f3->get('AUTOLOAD'),
                 'check' => true,
                 'tooltip' => 'Autoload folder for PHP files.',
-                'chmod' => Util::filesystemInfo($f3->get('AUTOLOAD'))['chmod']
+                'chmod' => Util::filesystemInfo($f3->get('AUTOLOAD'))['chmod'] ?? ''
             ],
             'FAVICON' => [
                 'label' => 'FAVICON',
                 'value' => $f3->get('FAVICON'),
                 'check' => true,
                 'tooltip' => 'Folder for Favicons.',
-                'chmod' => Util::filesystemInfo($f3->get('FAVICON'))['chmod']
+                'chmod' => Util::filesystemInfo($f3->get('FAVICON'))['chmod'] ?? ''
             ],
             'HISTORY' => [
                 'label' => 'HISTORY [optional]',
                 'value' => Config::getPathfinderData('history.log'),
                 'check' => true,
                 'tooltip' => 'Folder for log history files. (e.g. change logs for maps).',
-                'chmod' => Util::filesystemInfo(Config::getPathfinderData('history.log'))['chmod']
+                'chmod' => Util::filesystemInfo(Config::getPathfinderData('history.log'))['chmod'] ?? ''
             ],
             'CONFIG' => [
                 'label' => 'CONFIG PATH [optional]',
@@ -626,12 +632,31 @@ class Setup extends Controller {
     }
 
     /**
+     * parse memory value string (e.g. "256M", "1G") to bytes
+     * @param string $value
+     * @return int
+     */
+    protected function parseMemoryValue(string $value): int {
+        $value = strtoupper(trim($value));
+        if ($value === '-1') {
+            return PHP_INT_MAX; // unlimited
+        }
+        $units = ['K' => 1024, 'M' => 1024 ** 2, 'G' => 1024 ** 3];
+        $unit = substr($value, -1);
+        if (isset($units[$unit])) {
+            return (int)substr($value, 0, -1) * $units[$unit];
+        }
+        return (int)$value;
+    }
+
+    /**
      * check PHP config (php.ini)
      * @param \Base $f3
      * @return array
      */
     protected function checkPHPConfig(\Base $f3): array {
-        $memoryLimit        = (int)ini_get('memory_limit');
+        $memoryLimitStr     = ini_get('memory_limit');
+        $memoryLimit        = $this->parseMemoryValue($memoryLimitStr);
         $maxInputVars       = (int)ini_get('max_input_vars');
         $maxExecutionTime   = (int)ini_get('max_execution_time'); // 0 == infinite
         $htmlErrors         = (int)ini_get('html_errors');
@@ -647,7 +672,7 @@ class Setup extends Controller {
             'memoryLimit' => [
                 'label' => 'memory_limit',
                 'required' => $f3->get('REQUIREMENTS.PHP.MEMORY_LIMIT'),
-                'version' => $memoryLimit,
+                'version' => $memoryLimitStr,
                 'check' => $memoryLimit >= $f3->get('REQUIREMENTS.PHP.MEMORY_LIMIT'),
                 'tooltip' => 'PHP default = 64MB.'
             ],
@@ -717,9 +742,7 @@ class Setup extends Controller {
              * @param string $tag
              * @return string
              */
-            $getDbLabel = function(int $dbNum, string $tag) : string {
-                return '<i class="fas fa-fw fa-database"></i> db(' . $dbNum . ') : ' . $tag;
-            };
+            $getDbLabel = (fn(int $dbNum, string $tag): string => '<i class="fas fa-fw fa-database"></i> db(' . $dbNum . ') : ' . $tag);
 
             /**
              * get client information for a Redis client
@@ -727,18 +750,16 @@ class Setup extends Controller {
              * @param array  $conf
              * @return array
              */
-            $getClientInfo = function(\Redis $client, array $conf) : array {
-                return [
-                    'dsn' => [
-                        'label' => 'DSN',
-                        'value' => $conf['host'] . ':' . $conf['port']
-                    ],
-                    'connected' => [
-                        'label' => 'status',
-                        'value' => $client->isConnected()
-                    ]
-                ];
-            };
+            $getClientInfo = (fn(\Redis $client, $conf): array => [
+                'dsn' => [
+                    'label' => 'DSN',
+                    'value' => ($conf['host'] ?? 'localhost') . ':' . ($conf['port'] ?? 6379)
+                ],
+                'connected' => [
+                    'label' => 'status',
+                    'value' => $client->isConnected()
+                ]
+            ]);
 
             /**
              * get status information for a Redis client
@@ -856,15 +877,15 @@ class Setup extends Controller {
              * build (modify) $redisConfig with DNS $conf data
              * @param array $conf
              */
-            $buildRedisConfig = function(array $conf) use (&$redisConfig, $getDbLabel, $getClientInfo, $getClientStats, $getDatabaseStatus){
-                if($conf['type'] == 'redis'){
+            $buildRedisConfig = function( $conf) use (&$redisConfig, $getDbLabel, $getClientInfo, $getClientStats, $getDatabaseStatus): void{
+                if(($conf['type'] ?? null) == 'redis'){
                     // is Redis -> group all DNS by host:port
-                    $uid = $conf['host'] . ':' . $conf['port'];
+                    $uid = ($conf['host'] ?? 'localhost') . ':' . ($conf['port'] ?? 6379);
 
                     $client = new \Redis();
                     try{
-                        $client->pconnect($conf['host'], $conf['port'], 0.3);
-                        if(!empty($conf['auth'])){
+                        $client->pconnect($conf['host'] ?? 'localhost', $conf['port'] ?? 6379, 0.3);
+                        if(!empty($conf['auth'] ?? null)){
                             $client->auth($conf['auth']);
                         }
 
@@ -873,22 +894,22 @@ class Setup extends Controller {
                         }
 
                         $conf['db'] = $client->getDbNum();
-                    }catch(\RedisException $e){
+                    }catch(\RedisException){
                         // connection failed, getLastError() is called further down
                     }
 
                     if(!array_key_exists($uid, $redisConfig)){
                         $redisConfig[$uid] = $getClientInfo($client, $conf);
-                        $redisConfig[$uid]['status'] = $getClientStats($client) + $getDatabaseStatus($client, $conf['tag']);
-                    }elseif(!array_key_exists($uidDb = 'db_' . $conf['db'], $redisConfig[$uid]['status'])){
-                        $redisConfig[$uid]['status'] += $getDatabaseStatus($client, $conf['tag']);
+                        $redisConfig[$uid]['status'] = $getClientStats($client) + $getDatabaseStatus($client, $conf['tag'] ?? 'default');
+                    }elseif(!array_key_exists($uidDb = 'db_' . ($conf['db'] ?? 0), $redisConfig[$uid]['status'])){
+                        $redisConfig[$uid]['status'] += $getDatabaseStatus($client, $conf['tag'] ?? 'default');
                     }else{
-                        $redisConfig[$uid]['status'][$uidDb]['label'] .= '; ' . $conf['tag'];
+                        $redisConfig[$uid]['status'][$uidDb]['label'] .= '; ' . ($conf['tag'] ?? 'default');
                     }
 
                     if($error = $client->getLastError()){
                         $redisConfig[$uid]['errors'][] = [
-                            'label' => $getDbLabel((int)$conf['db'], $conf['tag']),
+                            'label' => $getDbLabel((int)($conf['db'] ?? 0), $conf['tag'] ?? 'default'),
                             'error' => $error
                         ];
                     }
@@ -912,17 +933,19 @@ class Setup extends Controller {
 
             // if Session handler is also Redis -> add this as well ---------------------------------------------------
             // -> the DSN format is not the same, convert URL format into DSN
+            $sessionSavePath = session_save_path();
             if(
                 strtolower(session_module_name()) == 'redis' &&
-                ($parts = parse_url(session_save_path()))
+                is_string($sessionSavePath) &&
+                ($parts = parse_url($sessionSavePath))
             ){
                 // parse URL parameters
-                parse_str((string)$parts['query'], $params);
+                parse_str((string)($parts['query'] ?? ''), $params);
 
                 $conf = [
                     'type' => 'redis',
-                    'host' => $parts['host'],
-                    'port' => $parts['port'],
+                    'host' => $parts['host'] ?? '',
+                    'port' => $parts['port'] ?? 6379,
                     'db'   => !empty($params['database']) ? (int)$params['database'] : 0,
                     'auth' => !empty($params['auth']) ? $params['auth'] : null,
                     'tag'  => 'SESSION'
@@ -931,9 +954,7 @@ class Setup extends Controller {
             }
 
             // sort all $dsnData by 'db' number -----------------------------------------------------------------------
-            usort($dsnData, function($a, $b){
-                return $a['db'] <=> $b['db'];
-            });
+            usort($dsnData, fn($a, $b) => $a['db'] <=> $b['db']);
 
             foreach($dsnData as $conf){
                 $buildRedisConfig($conf);
@@ -960,38 +981,46 @@ class Setup extends Controller {
             exec('node -v', $nodeOut, $nodeStatus);
             exec('npm -v', $npmOut, $npmStatus);
 
-            $normalizeVersion = function($version): string {
-                return preg_replace("/[^0-9\.\s]/", '', (string)$version);
-            };
+            $normalizeVersion = (fn($version): string => preg_replace("/[^0-9\.\s]/", '', (string)$version));
 
             $systemConf = [
                 'git' => [
                     'label' => 'Git',
-                    'version' => $gitOut[0] ? 'installed' : 'missing',
+                    'version' => ($gitOut[0] ?? '') ? 'installed' : 'missing',
                     'check' => $gitStatus == 0,
-                    'tooltip' => 'Git # git --version : ' . $gitOut[0]
+                    'tooltip' => 'Git # git --version : ' . ($gitOut[0] ?? '')
                 ],
                 'composer' => [
                     'label' => 'Composer',
-                    'version' => $composerOut[0] ? 'installed' : 'missing',
+                    'version' => ($composerOut[0] ?? '') ? 'installed' : 'missing',
                     'check' => $composerStatus == 0,
-                    'tooltip' => 'Composer # composer -V : ' . $composerOut[0]
+                    'tooltip' => 'Composer # composer -V : ' . ($composerOut[0] ?? '')
                 ],
                 'node' => [
                     'label' => 'NodeJs',
                     'required' => number_format((float)$f3->get('REQUIREMENTS.PATH.NODE'), 1, '.', ''),
-                    'version' => $normalizeVersion($nodeOut[0]) ?: 'missing',
-                    'check' => version_compare( $normalizeVersion($nodeOut[0]), number_format((float)$f3->get('REQUIREMENTS.PATH.NODE'), 1, '.', ''), '>='),
+                    'version' => $normalizeVersion($nodeOut[0] ?? '') ?: 'missing',
+                    'check' => version_compare( $normalizeVersion($nodeOut[0] ?? ''), number_format((float)$f3->get('REQUIREMENTS.PATH.NODE'), 1, '.', ''), '>='),
                     'tooltip' => 'NodeJs # node -v'
                 ],
                 'npm' => [
                     'label' => 'npm',
                     'required' => $f3->get('REQUIREMENTS.PATH.NPM'),
-                    'version' => $normalizeVersion($npmOut[0]) ?: 'missing',
-                    'check' => version_compare( $normalizeVersion($npmOut[0]), $f3->get('REQUIREMENTS.PATH.NPM'), '>='),
+                    'version' => $normalizeVersion($npmOut[0] ?? '') ?: 'missing',
+                    'check' => version_compare( $normalizeVersion($npmOut[0] ?? ''), $f3->get('REQUIREMENTS.PATH.NPM'), '>='),
                     'tooltip' => 'npm # npm -v'
                 ]
             ];
+        }
+
+        if($this->isDockerEnvironment()){
+            // In Docker the image is pre-built; build tools are not required at runtime.
+            foreach($systemConf as &$entry){
+                $entry['check'] = true;
+                $entry['version'] = 'not required';
+                unset($entry['required']);
+            }
+            unset($entry);
         }
 
         return $systemConf;
@@ -1006,8 +1035,8 @@ class Setup extends Controller {
         $matrix = \Matrix::instance();
         $mapsDefaultConfig = (array)Config::getMapsDefaultConfig();
         $matrix->transpose($mapsDefaultConfig);
-        
-        $mapConfig = ['mapTypes' => array_keys(reset($mapsDefaultConfig))];
+
+        $mapConfig = ['mapTypes' => array_keys((array)reset($mapsDefaultConfig))];
 
         foreach($mapsDefaultConfig as $option => $defaultConfig){
             $tooltip = '';
@@ -1049,10 +1078,6 @@ class Setup extends Controller {
                 case 'send_rally_discord_enabled':
                     $label = '<i class="fab fa-fw fa-discord"></i> Rally point poke Discord';
                     $tooltip = 'If "enabled", map admins can set a Discord channel for rally point pokes.';
-                    break;
-                case 'send_rally_mail_enabled':
-                    $label = '<i class="fas fa-fw fa-envelope"></i> Rally point poke Email';
-                    $tooltip = 'If "enabled", rally point pokes can be send by Email (SMTP config + recipient address required).';
                     break;
                 default:
                     $label = 'unknown';
@@ -1104,7 +1129,7 @@ class Setup extends Controller {
             // collection for errors
             $dbErrors = [];
             /**
-             * @var $db Sql
+             * @var Sql $db
              */
             $db = $f3->DB->getDB($dbAlias);
 
@@ -1174,7 +1199,7 @@ class Setup extends Controller {
                         $tableStatus = $db->getTableStatus($requiredTableName);
                         if(
                             !empty($tableStatus['Collation']) &&
-                            ($statusVal = strstr($tableStatus['Collation'], '_', true)) !== false
+                            ($statusVal = strstr((string) $tableStatus['Collation'], '_', true)) !== false
                         ){
                             $tableCharset = $statusVal;
                             $tableCollation = $tableStatus['Collation'];
@@ -1183,6 +1208,7 @@ class Setup extends Controller {
                         // find deprecated columns that are no longer needed ------------------------------------------
                         $deprecatedColumnNames = array_diff(array_keys($currentColumns), array_keys($data['fieldConf']), ['id']);
                         foreach($deprecatedColumnNames as $deprecatedColumnName){
+                            $requiredTables[$requiredTableName]['fieldConf'][$deprecatedColumnName]['type'] = 'deprecated';
                             $requiredTables[$requiredTableName]['fieldConf'][$deprecatedColumnName]['deprecated'] = true;
                             $requiredTables[$requiredTableName]['fieldConf'][$deprecatedColumnName]['currentType'] = 'deprecated';
                             //$requiredTables[$requiredTableName]['fieldConf'][$deprecatedColumnName]['statusCheck'] = false;
@@ -1205,10 +1231,10 @@ class Setup extends Controller {
 
                         $columnStatusCheck = true;
                         $foreignKeyStatusCheck = true;
-                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredType'] = $fieldConf['type'];
-                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredNullable'] = ($fieldConf['nullable']) ? '1' : '0';
-                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredIndex'] = ($fieldConf['index']) ? '1' : '0';
-                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredUnique'] = ($fieldConf['unique']) ? '1' : '0';
+                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredType'] = $fieldConf['type'] ?? '';
+                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredNullable'] = ($fieldConf['nullable'] ?? false) ? '1' : '0';
+                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredIndex'] = ($fieldConf['index'] ?? false) ? '1' : '0';
+                        $requiredTables[$requiredTableName]['fieldConf'][$columnName]['requiredUnique'] = ($fieldConf['unique'] ?? false) ? '1' : '0';
 
                         if(array_key_exists($columnName, $currentColumns)){
                             // column exists
@@ -1220,13 +1246,13 @@ class Setup extends Controller {
                             $col = new Mysql\Column($columnName, $tableModifier);
                             $col->copyfrom($currentColumns[$columnName]);
 
-                            $currentColType = $currentColumns[$columnName]['type'];
-                            $currentNullable = $currentColumns[$columnName]['nullable'];
+                            $currentColType = $currentColumns[$columnName]['type'] ?? '';
+                            $currentNullable = $currentColumns[$columnName]['nullable'] ?? false;
                             $hasNullable = $currentNullable ? '1' : '0';
                             $currentColIndexData = call_user_func(Config::withNamespace($data['model']) . '::indexExists', [$columnName]);
                             $currentColIndex = is_array($currentColIndexData);
                             $hasIndex = ($currentColIndex) ? '1' : '0';
-                            $hasUnique = ($currentColIndexData['unique']) ? '1' : '0';
+                            $hasUnique = (is_array($currentColIndexData) && ($currentColIndexData['unique'] ?? false)) ? '1' : '0';
                             $changedType = false;
                             $changedNullable = false;
                             $changedUnique = false;
@@ -1289,23 +1315,23 @@ class Setup extends Controller {
                             $indexKey = (bool)$hasIndex;
                             $indexUnique = (bool)$hasUnique;
 
-                            if($currentColIndex != $fieldConf['index']){
+                            if($currentColIndex != ($fieldConf['index'] ?? false)){
                                 $changedIndex = true;
                                 $columnStatusCheck = false;
                                 $tableStatusCheckCount++;
 
                                 $indexUpdate = true;
-                                $indexKey = (bool)$fieldConf['index'];
+                                $indexKey = (bool)($fieldConf['index'] ?? false);
                             }
 
                             // check if column unique changed ---------------------------------------------------------
-                            if($currentColIndexData['unique'] != $fieldConf['unique']){
+                            if(($currentColIndexData['unique'] ?? false) != ($fieldConf['unique'] ?? false)){
                                 $changedUnique = true;
                                 $columnStatusCheck = false;
                                 $tableStatusCheckCount++;
 
                                 $indexUpdate = true;
-                                $indexUnique = (bool)$fieldConf['unique'];
+                                $indexUnique = (bool)($fieldConf['unique'] ?? false);
                             }
 
                             // build table with changed columns -------------------------------------------------------
@@ -1469,9 +1495,7 @@ class Setup extends Controller {
         $results = $db->exec("SHOW VARIABLES WHERE Variable_Name IN ('" . implode("','", $mySQLConfigKeys) . "')");
 
         $getValue = function(string $param) use ($results) : string {
-            $match = array_filter($results, function($k) use ($param) : bool {
-                return strtolower($k['Variable_name']) == $param;
-            });
+            $match = array_filter($results, fn($k): bool => strtolower((string) $k['Variable_name']) == $param);
             return !empty($match) ? end(reset($match)) : 'unknown';
         };
 
@@ -1581,7 +1605,7 @@ class Setup extends Controller {
         $statsTcp = false;
         $statsWeb = false;
 
-        $setStats = function(array $stats) use (&$statsTcp, &$statsWeb) {
+        $setStats = function( $stats) use (&$statsTcp, &$statsWeb): void {
             if(!empty($stats['tcpSocket'])){
                 $statsTcp = $stats['tcpSocket'];
             }
@@ -1594,28 +1618,28 @@ class Setup extends Controller {
         $f3->webSocket(['timeout' => $ttl])
             ->write($task, $healthCheckToken)
             ->then(
-                function($payload) use ($task, $healthCheckToken, &$statusTcp, $setStats) {
+                function($payload) use ($task, $healthCheckToken, &$statusTcp, $setStats): void {
                     if(
-                        $payload['task'] == $task &&
-                        $payload['load'] == $healthCheckToken
+                        ($payload['task'] ?? null) == $task &&
+                        ($payload['load'] ?? null) == $healthCheckToken
                     ){
                         $statusTcp['type'] = 'success';
                         $statusTcp['label'] = 'PING OK';
                         $statusTcp['class'] = 'txt-color-success';
                     }else{
                         $statusTcp['type'] = 'warning';
-                        $statusTcp['label'] = is_string($payload['load']) ? $payload['load'] : 'INVALID RESPONSE';
+                        $statusTcp['label'] = is_string($payload['load'] ?? null) ? $payload['load'] : 'INVALID RESPONSE';
                         $statusTcp['class'] = 'txt-color-warning';
                     }
 
                     // statistics (e.g. current connection count)
-                    $setStats((array)$payload['stats']);
+                    $setStats((array)($payload['stats'] ?? []));
                 },
-                function($payload) use (&$statusTcp, $setStats) {
-                    $statusTcp['label'] = $payload['load'];
+                function($payload) use (&$statusTcp, $setStats): void {
+                    $statusTcp['label'] = $payload['load'] ?? '';
 
                     // statistics (e.g. current connection count)
-                    $setStats((array)$payload['stats']);
+                    $setStats((array)($payload['stats'] ?? []));
                 });
 
         return [
@@ -1623,7 +1647,7 @@ class Setup extends Controller {
                 'label'  => 'TCP-Socket (intern)',
                 'icon' => 'fa-exchange-alt',
                 'status' => $statusTcp,
-                'stats'  => $statsTcp,
+                'stats'  => is_array($statsTcp) ? $statsTcp : [],
                 'data' => [
                     [
                         'label' => 'HOST',
@@ -1643,8 +1667,8 @@ class Setup extends Controller {
                         'check' => !empty( $ttl )
                     ],[
                         'label' => 'uptime',
-                        'value' => Config::formatTimeInterval($statsTcp['startup'] ? : 0),
-                        'check' => $statsTcp['startup'] > 0
+                        'value' => Config::formatTimeInterval(($statsTcp['startup'] ?? null) ? : 0),
+                        'check' => ($statsTcp['startup'] ?? 0) > 0
                     ]
                 ],
                 'token' => $healthCheckToken
@@ -1653,7 +1677,7 @@ class Setup extends Controller {
                 'label' => 'Web-Socket',
                 'icon' => 'fa-random',
                 'status' => $statusWeb,
-                'stats'  => $statsWeb,
+                'stats'  => is_array($statsWeb) ? $statsWeb : [],
                 'data' => [
                     [
                         'label' => 'URI',
@@ -1719,7 +1743,7 @@ class Setup extends Controller {
         // active DB and tables are required for obtain index data
         if(!$this->databaseHasError){
             /**
-             * @var $categoryUniverseModel Universe\CategoryModel
+             * @var Universe\CategoryModel $categoryUniverseModel
              */
             $categoryUniverseModel = Universe\AbstractUniverseModel::getNew('CategoryModel');
             $categoryUniverseModel->getById(Config::ESI_CATEGORY_STRUCTURE_ID, 0);
@@ -1731,7 +1755,7 @@ class Setup extends Controller {
             $typesCountShip = $categoryUniverseModel->getTypesCount(false);
 
             /**
-             * @var $groupUniverseModel Universe\GroupModel
+             * @var Universe\GroupModel $groupUniverseModel
              */
 
             $groupUniverseModel = Universe\AbstractUniverseModel::getNew('GroupModel');
@@ -1739,12 +1763,12 @@ class Setup extends Controller {
             $wormholeCount = $groupUniverseModel->getTypesCount(false);
 
             /**
-             * @var $systemNeighbourModel Universe\SystemNeighbourModel
+             * @var Universe\SystemNeighbourModel $systemNeighbourModel
              */
             $systemNeighbourModel = Universe\AbstractUniverseModel::getNew('SystemNeighbourModel');
 
             /**
-             * @var $systemStaticModel Universe\SystemStaticModel
+             * @var Universe\SystemStaticModel $systemStaticModel
              */
             $systemStaticModel = Universe\AbstractUniverseModel::getNew('SystemStaticModel');
 
@@ -1753,9 +1777,7 @@ class Setup extends Controller {
                 $universeController->clearSystemsIndex();
             }
 
-            $sum = function(int $carry, int $value) : int {
-                return $carry + $value;
-            };
+            $sum = (fn(int $carry, int $value): int => $carry + $value);
 
             $indexInfo = [
                 'Wormholes' => [
@@ -1787,7 +1809,7 @@ class Setup extends Controller {
                     'tooltip' => 'import all structure types (e.g. Citadels) from ESI. Runtime: ~15s',
                     'subCount' => [
                         'countBuild' => $typesCountStructure,
-                        'countAll' => array_reduce(array_map('count', Universe\CategoryModel::getUniverseCategoryTypes(Config::ESI_CATEGORY_STRUCTURE_ID)), $sum, 0),
+                        'countAll' => array_reduce(array_map(count(...), Universe\CategoryModel::getUniverseCategoryTypes(Config::ESI_CATEGORY_STRUCTURE_ID)), $sum, 0),
                     ]
                 ],
                 'Ships' => [
@@ -1805,7 +1827,7 @@ class Setup extends Controller {
                     'tooltip' => 'import all ships from ESI. Runtime: ~2min',
                     'subCount' => [
                         'countBuild' => $typesCountShip,
-                        'countAll' => array_reduce(array_map('count', Universe\CategoryModel::getUniverseCategoryTypes(Config::ESI_CATEGORY_SHIP_ID)), $sum, 0),
+                        'countAll' => array_reduce(array_map(count(...), Universe\CategoryModel::getUniverseCategoryTypes(Config::ESI_CATEGORY_SHIP_ID)), $sum, 0),
                     ]
                 ],
                 'SystemStatic' => [
@@ -1911,7 +1933,7 @@ class Setup extends Controller {
         $cacheDsn   = (string)$f3->get('CACHE');
         Config::parseDSN($cacheDsn, $conf);
         // if 'CACHE' is e.g. redis=... -> show default dir for cache
-        $dirCache   = $conf['type'] == 'folder' ? $conf['folder'] : $dirTemp . 'cache/';
+        $dirCache   = ($conf['type'] ?? null) == 'folder' ? ($conf['folder'] ?? '') : $dirTemp . 'cache/';
 
         $dirAll = [
           'TEMP' => [
@@ -1931,7 +1953,7 @@ class Setup extends Controller {
             $maxHit = false;
             $bytes = 0;
             $files = Search::getFilesByMTime($dirData['path']);
-            foreach($files as $filename => $file) {
+            foreach($files as $file) {
                 $bytes += $file->getSize();
                 if($bytes > $maxBytes){
                     $maxHit = $maxHitAll = true;
@@ -1966,9 +1988,9 @@ class Setup extends Controller {
      */
     protected function clearFiles(string $path){
         $files = Search::getFilesByMTime($path);
-        foreach($files as $filename => $file){
+        foreach($files as $file){
             /**
-             * @var $file \SplFileInfo
+             * @var \SplFileInfo $file
              */
             if($file->isFile()){
                 if($file->isWritable()){

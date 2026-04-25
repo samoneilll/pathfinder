@@ -17,6 +17,21 @@ class Route extends AbstractRestController {
     const CACHE_KEY_THERA_JUMP_DATA = 'CACHED_THERA_JUMP_DATA';
 
     /**
+     * cache key for current Turnur connections from eve-scout.com
+     */
+    const CACHE_KEY_TURNUR_JUMP_DATA = 'CACHED_TURNUR_JUMP_DATA';
+
+    /**
+     * EVE system ID for Thera
+     */
+    const THERA_SYSTEM_ID = 31000005;
+
+    /**
+     * EVE system ID for Turnur
+     */
+    const TURNUR_SYSTEM_ID = 30002086;
+
+    /**
      * route search depth
      */
     const ROUTE_SEARCH_DEPTH_DEFAULT = 1;
@@ -98,8 +113,8 @@ class Route extends AbstractRestController {
             $rows = $universeDB->exec($query, null, $this->staticJumpDataCacheTime);
 
             if(count($rows) > 0){
-                array_walk($rows, function(&$row){
-                    $row['jumpNodes'] = array_map('intval', explode(':', $row['jumpNodes']));
+                array_walk($rows, function(&$row): void{
+                    $row['jumpNodes'] = array_map(intval(...), explode(':', (string) $row['jumpNodes']));
                 });
                 $this->updateJumpData($rows);
             }
@@ -110,13 +125,13 @@ class Route extends AbstractRestController {
      * set/add dynamic system jump data for specific "mapId"´s
      * -> this data is dynamic and could change on any map change
      * -> (e.g. new system added, connection added/updated, ...)
-     * @param array $mapIds
-     * @param array $filterData
+     * @param  $mapIds
+     * @param  $filterData
      * @throws \Exception
      */
-    private function setDynamicJumpData($mapIds = [], $filterData = []){
+    private function setDynamicJumpData( $mapIds = [],  $filterData = []){
         // make sure, mapIds are integers (protect against SQL injections)
-        $mapIds = array_unique( array_map('intval', $mapIds), SORT_NUMERIC);
+        $mapIds = array_unique( array_map(intval(...), $mapIds), SORT_NUMERIC);
 
         if( !empty($mapIds) ){
             // map filter ---------------------------------------------------------------------------------------------
@@ -131,43 +146,46 @@ class Route extends AbstractRestController {
 
             $excludeEndpointTypes = [];
 
-            if( $filterData['stargates'] === true){
+            if( ($filterData['stargates'] ?? false) === true){
                 // include "stargates" for search
                 $includeScopes[] = 'stargate';
                 $includeTypes[] = 'stargate';
 
             }
 
-            if( $filterData['jumpbridges'] === true ){
+            if( ($filterData['jumpbridges'] ?? false) === true ){
                 // add jumpbridge connections for search
                 $includeScopes[] = 'jumpbridge';
                 $includeTypes[] = 'jumpbridge';
             }
 
-            if( $filterData['wormholes'] === true ){
+            if( ($filterData['wormholes'] ?? false) === true ){
                 // add wormhole connections for search
                 $includeScopes[] = 'wh';
                 $includeTypes[] = 'wh_fresh';
 
 
-                if( $filterData['wormholesReduced'] === true ){
+                if( ($filterData['wormholesReduced'] ?? false) === true ){
                     $includeTypes[] = 'wh_reduced';
                 }
 
-                if( $filterData['wormholesCritical'] === true ){
+                if( ($filterData['wormholesCritical'] ?? false) === true ){
                     $includeTypes[] = 'wh_critical';
                 }
 
-                if( $filterData['wormholesEOL'] === false ){
+                if( ($filterData['wormholesEOL'] ?? null) === false ){
                     $includeEOL = false;
                 }
 
                 if(!empty($filterData['excludeTypes'])){
-                    $excludeTypes = $filterData['excludeTypes'];
+                    $excludeTypes = array_values(array_intersect(
+                        array_map('strval', (array)$filterData['excludeTypes']),
+                        Pathfinder\ConnectionModel::getConnectionTypeWhitelist()
+                    ));
                 }
             }
 
-            if( $filterData['endpointsBubble'] !== true ){
+            if( ($filterData['endpointsBubble'] ?? false) !== true ){
                 $excludeEndpointTypes[] = 'bubble';
             }
 
@@ -213,7 +231,11 @@ class Route extends AbstractRestController {
                               `connection`.`mapId` " . $whereMapIdsQuery . "
                               ";
 
-                $rows = $this->getDB()->exec($query,  null, $this->dynamicJumpDataCacheTime);
+                if($db = $this->getDB()){
+                    $rows = $db->exec($query,  null, $this->dynamicJumpDataCacheTime);
+                }else{
+                    $rows = [];
+                }
 
                 if(count($rows) > 0){
                     $jumpData = [];
@@ -225,7 +247,7 @@ class Route extends AbstractRestController {
                      * @param string $systemSourceKey
                      * @param string $systemTargetKey
                      */
-                    $enrichJumpData = function(array &$row, string $systemSourceKey, string $systemTargetKey) use (&$jumpData, &$universe) {
+                    $enrichJumpData = function(array &$row, string $systemSourceKey, string $systemTargetKey) use (&$jumpData, &$universe): void {
                         if(
                             !array_key_exists($row[$systemSourceKey], $jumpData) &&
                             !is_null($staticData = $universe->getSystemData($row[$systemSourceKey]))
@@ -236,6 +258,7 @@ class Route extends AbstractRestController {
                                 'constellationId'   => $staticData->constellation->id,
                                 'regionId'          => $staticData->constellation->region->id,
                                 'trueSec'           => $staticData->trueSec,
+                                'jumpNodes'         => [],
                             ];
                         }
 
@@ -245,6 +268,10 @@ class Route extends AbstractRestController {
                     };
 
                     for($i = 0; $i < count($rows); $i++){
+                        // skip connections involving unknown systems (null systemId)
+                        if(is_null($rows[$i]['systemSourceId']) || is_null($rows[$i]['systemTargetId'])){
+                            continue;
+                        }
                         $enrichJumpData($rows[$i],  'systemSourceId', 'systemTargetId');
                         $enrichJumpData($rows[$i],  'systemTargetId', 'systemSourceId');
                     }
@@ -256,69 +283,87 @@ class Route extends AbstractRestController {
     }
 
     /**
-     * set current Thera connections jump data for this instance
-     * -> Connected wormholes pulled from eve-scout.com
+     * build jump data from EVE Scout connections, filtered to a specific hub system
+     * @param int $hubSystemId only include connections where source OR target matches this system ID
+     * @param string $cacheKey
+     * @return array
      */
-    private function setTheraJumpData(){
-        if(!$this->getF3()->exists(self::CACHE_KEY_THERA_JUMP_DATA, $jumpData)){
+    private function buildEveScoutJumpData(int $hubSystemId, string $cacheKey) : array {
+        if(!$this->getF3()->exists($cacheKey, $jumpData)){
             $jumpData = [];
             $connectionsData = $this->getF3()->eveScoutClient()->send('getTheraConnections');
 
             if(!empty($connectionsData) && !isset($connectionsData['error'])){
-                /**
-                 * map Thera jump data to Pathfinder format
-                 * @param array $row
-                 * @param string $systemSourceKey
-                 * @param string $systemTargetKey
-                 */
-                $enrichJumpData = function(array &$row, string $systemSourceKey, string $systemTargetKey) use (&$jumpData) {
-                    // check if response data is valid
+                $enrichJumpData = function(array &$row, string $systemSourceKey, string $systemTargetKey) use (&$jumpData): void {
                     if(
-                        is_object($systemSource = $row[$systemSourceKey]) && !empty((array)$systemSource) &&
-                        is_object($systemTarget = $row[$systemTargetKey]) && !empty((array)$systemTarget)
+                        is_array($systemSource = $row[$systemSourceKey]) && !empty($systemSource) &&
+                        is_array($systemTarget = $row[$systemTargetKey]) && !empty($systemTarget)
                     ){
-                        if(!array_key_exists($systemSource->id, $jumpData)){
-                            $jumpData[$systemSource->id] = [
-                                'systemId'          => (int)$systemSource->id,
-                                'systemName'        => $systemSource->name,
-                                'constellationId'   => (int)$systemSource->constellationID,
-                                'regionId'          => (int)$systemSource->regionId,
-                                'trueSec'           => $systemSource->security,
+                        $srcId = $systemSource['id'];
+                        $targetId = $systemTarget['id'];
+                        if(!array_key_exists($srcId, $jumpData)){
+                            $jumpData[$srcId] = [
+                                'systemId'   => $srcId,
+                                'systemName' => $systemSource['name'],
+                                'jumpNodes'  => [],
                             ];
                         }
-
-                        if( !in_array((int)$systemTarget->id, (array)$jumpData[$systemSource->id]['jumpNodes']) ){
-                            $jumpData[$systemSource->id]['jumpNodes'][] = (int)$systemTarget->id;
+                        if(!in_array($targetId, $jumpData[$srcId]['jumpNodes'])){
+                            $jumpData[$srcId]['jumpNodes'][] = $targetId;
                         }
                     }
                 };
 
                 foreach((array)$connectionsData['connections'] as $connectionData){
+                    // only include connections involving the specified hub system
+                    $sourceId = (int)(is_array($connectionData['source'] ?? null) ? $connectionData['source']['id'] ?? 0 : 0);
+                    $targetId = (int)(is_array($connectionData['target'] ?? null) ? $connectionData['target']['id'] ?? 0 : 0);
+                    if($sourceId !== $hubSystemId && $targetId !== $hubSystemId){
+                        continue;
+                    }
                     $enrichJumpData($connectionData, 'source', 'target');
                     $enrichJumpData($connectionData, 'target', 'source');
                 }
 
                 if(!empty($jumpData)){
-                    $this->getF3()->set(self::CACHE_KEY_THERA_JUMP_DATA, $jumpData, $this->theraJumpDataCacheTime);
+                    $this->getF3()->set($cacheKey, $jumpData, $this->theraJumpDataCacheTime);
                 }
             }
         }
 
+        return $jumpData;
+    }
+
+    /**
+     * set current Thera connections jump data for this instance
+     * -> Connected wormholes pulled from eve-scout.com, filtered to Thera (31000005)
+     */
+    private function setTheraJumpData() : void {
+        $jumpData = $this->buildEveScoutJumpData(self::THERA_SYSTEM_ID, self::CACHE_KEY_THERA_JUMP_DATA);
+        $this->updateJumpData($jumpData);
+    }
+
+    /**
+     * set current Turnur connections jump data for this instance
+     * -> Connected wormholes pulled from eve-scout.com, filtered to Turnur (30002086)
+     */
+    private function setTurnurJumpData() : void {
+        $jumpData = $this->buildEveScoutJumpData(self::TURNUR_SYSTEM_ID, self::CACHE_KEY_TURNUR_JUMP_DATA);
         $this->updateJumpData($jumpData);
     }
 
     /**
      * update jump data for this instance
      * -> data is either coming from CCPs [SDE] OR from map specific data
-     * @param array $rows
+     * @param  $rows
      */
-    private function updateJumpData(&$rows = []){
+    private function updateJumpData( &$rows = []){
         foreach($rows as &$row){
-            $regionId       = (int)$row['regionId'];
-            $constId        = (int)$row['constellationId'];
+            $regionId       = (int)($row['regionId'] ?? 0);
+            $constId        = (int)($row['constellationId'] ?? 0);
             $systemName     = (string)($row['systemName']);
             $systemId       = (int)$row['systemId'];
-            $secStatus      = (float)$row['trueSec'];
+            $secStatus      = (float)($row['trueSec'] ?? 0.0);
 
             // fill "nameArray" data ----------------------------------------------------------------------------------
             if( !isset($this->nameArray[$systemId]) ){
@@ -334,7 +379,7 @@ class Route extends AbstractRestController {
             }
 
             // fill "jumpArray" data ----------------------------------------------------------------------------------
-            if( !is_array($this->jumpArray[$systemId]) ){
+            if( !is_array($this->jumpArray[$systemId] ?? null) ){
                 $this->jumpArray[$systemId] = [];
             }
             $this->jumpArray[$systemId] = array_merge((array)$row['jumpNodes'], $this->jumpArray[$systemId]);
@@ -348,11 +393,11 @@ class Route extends AbstractRestController {
 
     /**
      * filter systems (remove some systems) e.g. WH,LS,0.0 for "secure search"
-     * @param array $filterData
-     * @param array $keepSystems
+     * @param  $filterData
+     * @param  $keepSystems
      */
-    private function filterJumpData($filterData = [], $keepSystems = []){
-        if($filterData['flag'] == 'secure'){
+    private function filterJumpData( $filterData = [],  $keepSystems = []){
+        if(($filterData['flag'] ?? '') == 'secure'){
             // remove all systems (TrueSec < 0.5) from search arrays
             $this->jumpArray = array_filter($this->jumpArray, function($systemId) use ($keepSystems) {
                 $systemNameData = $this->nameArray[$systemId];
@@ -361,7 +406,7 @@ class Route extends AbstractRestController {
                 if(
                     $systemSec < 0.45 &&
                     !in_array($systemId, $keepSystems) &&
-                    !preg_match('/^j\d+$/i', $this->idArray[$systemId]) // WHs are supposed to be "secure"
+                    !preg_match('/^j\d+$/i', (string) $this->idArray[$systemId]) // WHs are supposed to be "secure"
                 ){
                     // remove system from nameArray and idArray
                     unset($this->nameArray[$systemId]);
@@ -376,39 +421,32 @@ class Route extends AbstractRestController {
 
     /**
      * get system data by systemId and dataName
-     * @param $systemId
-     * @param $option
+     * @param int $systemId
+     * @param string $option
      * @return null
      */
-    private function getSystemInfoBySystemId($systemId, $option){
+    private function getSystemInfoBySystemId(int $systemId, string $option){
         $info = null;
-        switch($option){
-            case 'systemName':
-                $info = $this->nameArray[$systemId][0];
-                break;
-            case 'regionId':
-                $info = $this->nameArray[$systemId][1];
-                break;
-            case 'constellationId':
-                $info = $this->nameArray[$systemId][2];
-                break;
-            case 'trueSec':
-                $info = $this->nameArray[$systemId][3];
-                break;
-        }
+        $info = match ($option) {
+            'systemName' => $this->nameArray[$systemId][0],
+            'regionId' => $this->nameArray[$systemId][1],
+            'constellationId' => $this->nameArray[$systemId][2],
+            'trueSec' => $this->nameArray[$systemId][3],
+            default => $info,
+        };
 
         return $info;
     }
 
     /**
      * recursive search function within a undirected graph
-     * @param $G
-     * @param $A
-     * @param $B
+     * @param  $G
+     * @param string $A
+     * @param string $B
      * @param int $M
      * @return array
      */
-    private function graph_find_path(&$G, $A, $B, $M = 50000){
+    private function graph_find_path(array &$G, string $A, string $B, int $M = 50000){
         $maxDepth = $M;
 
         // $P will hold the result path at the end.
@@ -437,7 +475,7 @@ class Route extends AbstractRestController {
 
             if(array_key_exists($X, $G)){
                 foreach($G[$X] as $Y){
-                    $Y = trim($Y);
+                    $Y = trim((string) $Y);
                     // See if we got a solution
                     if($Y == $B){
                         // We did? Construct a result path then
@@ -489,18 +527,18 @@ class Route extends AbstractRestController {
      * @param int $systemFromId
      * @param int $systemToId
      * @param int $searchDepth
-     * @param array $mapIds
-     * @param array $filterData
+     * @param  $mapIds
+     * @param  $filterData
      * @return array
      * @throws \Exception
      */
-    public function searchRoute(int $systemFromId, int $systemToId, $searchDepth = 0, array $mapIds = [], array $filterData = []) : array {
+    public function searchRoute(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
         // search root by ESI API
         $routeData = $this->searchRouteESI($systemFromId, $systemToId, $searchDepth, $mapIds, $filterData);
 
         // Endpoint return http:404 in case no route find (e.g. from inside a wh)
         // we thread that error "no route found" as a valid response! -> no fallback to custom search
-        if(!empty($routeData['error']) && strtolower($routeData['error']) !== 'no route found'){
+        if(!empty($routeData['error']) && strtolower((string) $routeData['error']) !== 'no route found'){
             // ESI route search has errors -> fallback to custom search implementation
             $routeData = $this->searchRouteCustom($systemFromId, $systemToId, $searchDepth, $mapIds, $filterData);
         }
@@ -513,16 +551,16 @@ class Route extends AbstractRestController {
      * @param int $systemFromId
      * @param int $systemToId
      * @param int $searchDepth
-     * @param array $mapIds
-     * @param array $filterData
+     * @param  $mapIds
+     * @param  $filterData
      * @return array
      * @throws \Exception
      */
-    private function searchRouteCustom(int $systemFromId, int $systemToId, $searchDepth = 0, array $mapIds = [], array $filterData = []) : array {
+    private function searchRouteCustom(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
         // reset all previous set jump data
         $this->resetJumpData();
 
-        $searchDepth = $searchDepth ? $searchDepth : Config::getPathfinderData('route.search_depth');
+        $searchDepth = $searchDepth ?: Config::getPathfinderData('route.search_depth');
 
         $routeData = $this->defaultRouteData;
         $routeData['maxDepth'] = $searchDepth;
@@ -537,8 +575,13 @@ class Route extends AbstractRestController {
             $this->setDynamicJumpData($mapIds, $filterData);
 
             // add current Thera connections data
-            if($filterData['wormholesThera']){
+            if($filterData['wormholesThera'] ?? false){
                 $this->setTheraJumpData();
+            }
+
+            // add current Turnur connections data
+            if($filterData['wormholesTurnur'] ?? false){
+                $this->setTurnurJumpData();
             }
 
             // filter jump data (e.g. remove some systems (0.0, LS)
@@ -597,16 +640,16 @@ class Route extends AbstractRestController {
      * @param int $systemFromId
      * @param int $systemToId
      * @param int $searchDepth
-     * @param array $mapIds
-     * @param array $filterData
+     * @param  $mapIds
+     * @param  $filterData
      * @return array
      * @throws \Exception
      */
-    private function searchRouteESI(int $systemFromId, int $systemToId, int $searchDepth = 0, array $mapIds = [], array $filterData = []) : array {
+    private function searchRouteESI(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
         // reset all previous set jump data
         $this->resetJumpData();
 
-        $searchDepth = $searchDepth ? $searchDepth : Config::getPathfinderData('route.search_depth');
+        $searchDepth = $searchDepth ?: Config::getPathfinderData('route.search_depth');
 
         $routeData = $this->defaultRouteData;
         $routeData['maxDepth'] = $searchDepth;
@@ -624,8 +667,13 @@ class Route extends AbstractRestController {
             $this->setDynamicJumpData($mapIds, $filterData);
 
             // add current Thera connections data
-            if($filterData['wormholesThera']){
+            if($filterData['wormholesThera'] ?? false){
                 $this->setTheraJumpData();
+            }
+
+            // add current Turnur connections data
+            if($filterData['wormholesTurnur'] ?? false){
+                $this->setTurnurJumpData();
             }
 
             // filter jump data (e.g. remove some systems (0.0, LS)
@@ -675,8 +723,8 @@ class Route extends AbstractRestController {
 
             // search route -------------------------------------------------------------------------------------------
             $options = [
-                'flag' => $filterData['flag'],
-                'connections' => $connections,                
+                'flag' => ($filterData['flag'] ?? ''),
+                'connections' => $connections
             ];
 
             $result = $this->getF3()->ccpClient()->send('getRoute', $systemFromId, $systemToId, $options);
@@ -724,7 +772,7 @@ class Route extends AbstractRestController {
      * @param array $filterData
      * @return string
      */
-    private function getRouteCacheKey($mapIds, $systemFrom, $systemTo, $filterData = []){
+    private function getRouteCacheKey( $mapIds, int $systemFrom, int $systemTo,  $filterData = []){
 
         $keyParts = [
             implode('_', $mapIds),
@@ -733,7 +781,8 @@ class Route extends AbstractRestController {
         ];
 
         $keyParts += $filterData;
-        return 'route_' . hash('md5', implode('_', $keyParts));
+        $keyStrings = array_map(fn($v) => is_array($v) ? implode(',', $v) : (string)$v, $keyParts);
+        return 'route_' . hash('md5', implode('_', $keyStrings));
     }
 
     /**
@@ -757,7 +806,7 @@ class Route extends AbstractRestController {
             $validMaps = [];
 
             /**
-             * @var $map Pathfinder\MapModel
+             * @var Pathfinder\MapModel $map
              */
             $map = Pathfinder\AbstractPathfinderModel::getNew('MapModel');
 
@@ -768,10 +817,10 @@ class Route extends AbstractRestController {
                 // mapIds are optional. If mapIds is empty or not set
                 // route search is limited to CCPs static data
                 $mapData = (array)$routeData['mapIds'];
-                $mapData = array_flip( array_map('intval', $mapData) );
+                $mapData = array_flip( array_map(intval(...), $mapData) );
 
                 // check map access (filter requested mapIDs and format) ----------------------------------------------
-                array_walk($mapData, function(&$item, &$key, $data){
+                array_walk($mapData, function(&$item, $key, $data): void{
                     /**
                      * @var Pathfinder\MapModel $data[0]
                      */
@@ -801,23 +850,24 @@ class Route extends AbstractRestController {
 
                 // search route with filter options
                 $filterData = [
-                    'stargates'             => (bool) $routeData['stargates'],
-                    'jumpbridges'           => (bool) $routeData['jumpbridges'],
-                    'wormholes'             => (bool) $routeData['wormholes'],
-                    'wormholesReduced'      => (bool) $routeData['wormholesReduced'],
-                    'wormholesCritical'     => (bool) $routeData['wormholesCritical'],
-                    'wormholesEOL'          => (bool) $routeData['wormholesEOL'],
-                    'wormholesThera'        => (bool) $routeData['wormholesThera'],
-                    'wormholesSizeMin'      => (string) $routeData['wormholesSizeMin'],
-                    'excludeTypes'          => (array) $routeData['excludeTypes'],
-                    'endpointsBubble'       => (bool) $routeData['endpointsBubble'],
-                    'flag'                  => $routeData['flag']
+                    'stargates'             => (bool) ($routeData['stargates'] ?? false),
+                    'jumpbridges'           => (bool) ($routeData['jumpbridges'] ?? false),
+                    'wormholes'             => (bool) ($routeData['wormholes'] ?? false),
+                    'wormholesReduced'      => (bool) ($routeData['wormholesReduced'] ?? false),
+                    'wormholesCritical'     => (bool) ($routeData['wormholesCritical'] ?? false),
+                    'wormholesEOL'          => (bool) ($routeData['wormholesEOL'] ?? false),
+                    'wormholesThera'        => (bool) ($routeData['wormholesThera'] ?? false),
+                    'wormholesTurnur'       => (bool) ($routeData['wormholesTurnur'] ?? false),
+                    'wormholesSizeMin'      => (string) ($routeData['wormholesSizeMin'] ?? ''),
+                    'excludeTypes'          => (array) ($routeData['excludeTypes'] ?? []),
+                    'endpointsBubble'       => (bool) ($routeData['endpointsBubble'] ?? false),
+                    'flag'                  => ($routeData['flag'] ?? '')
                 ];
 
                 $returnRoutData = [
-                    'systemFromData'        => $routeData['systemFromData'],
-                    'systemToData'          => $routeData['systemToData'],
-                    'skipSearch'            => (bool) $routeData['skipSearch'],
+                    'systemFromData'        => ($routeData['systemFromData'] ?? []),
+                    'systemToData'          => ($routeData['systemToData'] ?? []),
+                    'skipSearch'            => (bool) ($routeData['skipSearch'] ?? false),
                     'maps'                  => $mapData,
                     'mapIds'                => $mapIds
                 ];
@@ -829,15 +879,13 @@ class Route extends AbstractRestController {
                     !$returnRoutData['skipSearch'] &&
                     count($mapIds) > 0
                 ){
-                    $systemFrom     = $routeData['systemFromData']['name'];
                     $systemFromId   = (int)$routeData['systemFromData']['systemId'];
-                    $systemTo       = $routeData['systemToData']['name'];
                     $systemToId     = (int)$routeData['systemToData']['systemId'];
 
                     $cacheKey = $this->getRouteCacheKey(
                         $mapIds,
-                        $systemFrom,
-                        $systemTo,
+                        $systemFromId,
+                        $systemToId,
                         $filterData
                     );
 

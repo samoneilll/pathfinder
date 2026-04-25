@@ -18,18 +18,18 @@ class Connection extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function get(\Base $f3, $params){
+    public function get(\Base $f3,  $params) : void {
         $requestData = $this->getRequestData($f3);
-        $connectionIds = array_map('intval', explode(',', (string)$params['id']));
-        $addData = (array)$requestData['addData'];
-        $filterData = (array)$requestData['filterData'];
+        $connectionIds = array_map(intval(...), explode(',', (string)$params['id']));
+        $addData = (array)($requestData['addData'] ?? []);
+        $filterData = (array)($requestData['filterData'] ?? []);
         $connectionData = [];
 
         if($mapId = (int)$requestData['mapId']){
             $activeCharacter = $this->getCharacter();
 
             /**
-             * @var $map Pathfinder\MapModel
+             * @var Pathfinder\MapModel $map
              */
             $map = Pathfinder\AbstractPathfinderModel::getNew('MapModel');
             $map->getById($mapId);
@@ -64,7 +64,7 @@ class Connection extends AbstractRestController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function put(\Base $f3){
+    public function put(\Base $f3) : void {
         $requestData = $this->getRequestData($f3);
         $connectionData = [];
 
@@ -72,7 +72,7 @@ class Connection extends AbstractRestController {
             $activeCharacter = $this->getCharacter();
 
             /**
-             * @var $map Pathfinder\MapModel
+             * @var Pathfinder\MapModel $map
              */
             $map = Pathfinder\AbstractPathfinderModel::getNew('MapModel');
             $map->getById($mapId);
@@ -85,7 +85,7 @@ class Connection extends AbstractRestController {
                     !is_null($target)
                 ){
                     /**
-                     * @var $connection Pathfinder\ConnectionModel
+                     * @var Pathfinder\ConnectionModel $connection
                      */
                     $connection = Pathfinder\AbstractPathfinderModel::getNew('ConnectionModel');
                     $connection->getById((int)$requestData['id']);
@@ -95,12 +95,12 @@ class Connection extends AbstractRestController {
                     $connection->target = $target;
 
                     // if scope + type data send -> use them ...
-                    if($requestData['scope'] && !empty($requestData['type'])){
+                    if(($requestData['scope'] ?? null) && !empty($requestData['type'] ?? [])){
                         $connection->copyfrom($requestData, ['scope', 'type']);
                     }
 
                     // ... set/change default scope + type
-                    if(!$requestData['disableAutoScope']){
+                    if(!($requestData['disableAutoScope'] ?? false)){
                         $connection->setAutoScopeAndType();
                     }
 
@@ -122,16 +122,16 @@ class Connection extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function delete(\Base $f3, $params){
+    public function delete(\Base $f3,  $params) : void {
         $requestData = $this->getRequestData($f3);
-        $connectionIds = array_map('intval', explode(',', (string)$params['id']));
+        $connectionIds = array_map(intval(...), explode(',', (string)$params['id']));
         $deletedConnectionIds = [];
 
         if($mapId = (int)$requestData['mapId']){
             $activeCharacter = $this->getCharacter();
 
             /**
-             * @var $map Pathfinder\MapModel
+             * @var Pathfinder\MapModel $map
              */
             $map = Pathfinder\AbstractPathfinderModel::getNew('MapModel');
             $map->getById($mapId);

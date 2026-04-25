@@ -42,8 +42,7 @@ class Monolog extends \Prefab {
     const FORMATTER = [
         'line'          => 'Monolog\Formatter\LineFormatter',
         'json'          => 'Monolog\Formatter\JsonFormatter',
-        'html'          => 'Monolog\Formatter\HtmlFormatter',
-        'mail'          => 'Exodus4D\Pathfinder\Lib\Logging\Formatter\MailFormatter'
+        'html'          => 'Monolog\Formatter\HtmlFormatter'
     ];
 
     /**
@@ -51,12 +50,11 @@ class Monolog extends \Prefab {
      */
     const HANDLER = [
         'stream'        => 'Monolog\Handler\StreamHandler',
-        'mail'          => 'Monolog\Handler\SwiftMailerHandler',
-        'socket'        => 'Exodus4D\Pathfinder\Lib\Logging\Handler\SocketHandler',
-        'slackMap'      => 'Exodus4D\Pathfinder\Lib\Logging\Handler\SlackMapWebhookHandler',
-        'slackRally'    => 'Exodus4D\Pathfinder\Lib\Logging\Handler\SlackRallyWebhookHandler',
-        'discordMap'    => 'Exodus4D\Pathfinder\Lib\Logging\Handler\DiscordMapWebhookHandler',
-        'discordRally'  => 'Exodus4D\Pathfinder\Lib\Logging\Handler\DiscordRallyWebhookHandler'
+        'socket'        => \Exodus4D\Pathfinder\Lib\Logging\Handler\SocketHandler::class,
+        'slackMap'      => \Exodus4D\Pathfinder\Lib\Logging\Handler\SlackMapWebhookHandler::class,
+        'slackRally'    => \Exodus4D\Pathfinder\Lib\Logging\Handler\SlackRallyWebhookHandler::class,
+        'discordMap'    => \Exodus4D\Pathfinder\Lib\Logging\Handler\DiscordMapWebhookHandler::class,
+        'discordRally'  => \Exodus4D\Pathfinder\Lib\Logging\Handler\DiscordRallyWebhookHandler::class
     ];
 
     /**
@@ -112,8 +110,8 @@ class Monolog extends \Prefab {
      */
     public function log(){
 
-        foreach($this->logs as $logType => $logs){
-            foreach($logs as $logKey => $log){
+        foreach($this->logs as $logs){
+            foreach($logs as $log){
                 $groupHash      = $log->getGroupHash();
                 $level          = Logger::toMonologLevel($log->getLevel());
 

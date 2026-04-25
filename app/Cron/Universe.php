@@ -48,7 +48,7 @@ class Universe extends AbstractCron {
      */
     private function formatMemoryValue(int $size){
         $unit = ['B','KB','MB','GB','TB','PB'];
-        return  str_pad(number_format(@round($size/pow(1024,($i=floor(log($size,1024)))),2), 2, '.', '') . '' . $unit[$i], 9, ' ', STR_PAD_LEFT);
+        return  str_pad(number_format(@round($size/1024 ** $i=floor(log($size,1024)),2), 2, '.', '') . '' . $unit[$i], 9, ' ', STR_PAD_LEFT);
     }
 
     /**
@@ -58,9 +58,7 @@ class Universe extends AbstractCron {
      */
     private function formatSeconds(float $time){
         $time = round($time, 5);
-        $formatSeconds = function($seconds){
-            return str_pad(number_format(round($seconds, 5), 5), 8, ' ', STR_PAD_LEFT);
-        };
+        $formatSeconds = (fn($seconds) => str_pad(number_format(round($seconds, 5), 5), 8, ' ', STR_PAD_LEFT));
 
         $formatted =  $time < 60 ? $formatSeconds($time) . 's' : floor($time / 60) . 'm ' . $formatSeconds(fmod($time, 60)) . 's';
         return str_pad($formatted, 14, ' ', STR_PAD_LEFT);
@@ -171,9 +169,9 @@ class Universe extends AbstractCron {
      */
     function setup(\Base $f3){
         $params = (array)$f3->get('GET');
-        $type = (string)$params['type'];
-        $paramOffset = (int)$params['offset'];
-        $paramLength = (int)$params['length'];
+        $type = (string)($params['type'] ?? '');
+        $paramOffset = (int)($params['offset'] ?? 0);
+        $paramLength = (int)($params['length'] ?? 0);
         $timeTotalStart = microtime(true);
         $msg = '';
 
@@ -181,14 +179,14 @@ class Universe extends AbstractCron {
         $importCount = 0;
         $count = 0;
         $modelClass = '';
-        $setupModel = function(Model\Universe\AbstractUniverseModel &$model, int $id){};
+        $setupModel = function(Model\Universe\AbstractUniverseModel &$model, int $id): void{};
 
         switch($type){
             case 'system':
                 // load systems + dependencies (planets, star, types,...)
                 $ids = $f3->ccpClient()->send('getUniverseSystems');
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id){
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id): void{
                     $model->loadById($id);
                     $model->loadPlanetsData();
                 };
@@ -197,7 +195,7 @@ class Universe extends AbstractCron {
                 // load all stargates. Systems must be present first!
                 $ids = $f3->ccpClient()->send('getUniverseSystems');
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id){
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id): void{
                     $model->loadById($id);
                     $model->loadStargatesData();
                 };
@@ -205,7 +203,7 @@ class Universe extends AbstractCron {
             case 'station':
                 $ids = $f3->ccpClient()->send('getUniverseSystems');
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id){
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id): void{
                     if($model->getById($id)){
                         $model->loadStationsData();
                     }else{
@@ -219,7 +217,7 @@ class Universe extends AbstractCron {
                 $sovData = $f3->ccpClient()->send('getSovereigntyMap');
                 $ids = !empty($sovData = $sovData['map']) ? array_keys($sovData): [];
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id) use ($sovData) {
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id) use ($sovData): void {
                     if($model->getById($id)){
                         $model->updateSovereigntyData($sovData[$id]);
                     }else{
@@ -232,7 +230,7 @@ class Universe extends AbstractCron {
                 $fwSystems = $f3->ccpClient()->send('getFactionWarSystems');
                 $ids = !empty($fwSystems = $fwSystems['systems']) ? array_keys($fwSystems): [];
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id) use ($fwSystems) {
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id) use ($fwSystems): void {
                     if($model->getById($id)){
                         $model->updateFactionWarData($fwSystems[$id]);
                     }else{
@@ -245,7 +243,7 @@ class Universe extends AbstractCron {
                 // setup system index, Systems must be present first!
                 $ids = $f3->ccpClient()->send('getUniverseSystems');
                 $modelClass = 'SystemModel';
-                $setupModel = function(Model\Universe\SystemModel &$model, int $id){
+                $setupModel = function(Model\Universe\SystemModel &$model, int $id): void{
                     $model->getById($id); // no loadById() here! would take "forever" when system not exists and must be build up first...
                     $model->buildIndex();
                 };
@@ -270,7 +268,7 @@ class Universe extends AbstractCron {
             $this->echoStart();
 
             /**
-             * @var $model Model\Universe\SystemModel
+             * @var Model\Universe\SystemModel $model
              */
             $model = Model\Universe\AbstractUniverseModel::getNew($modelClass);
             foreach($ids as $id){
@@ -306,7 +304,7 @@ class Universe extends AbstractCron {
         $msg = '';
 
         /**
-         * @var $system Model\Universe\SystemModel
+         * @var Model\Universe\SystemModel $system
          */
         $system = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
 
@@ -328,7 +326,7 @@ class Universe extends AbstractCron {
             // -> even though they are returned from sovereignty/map endpoint?!
             if(
                 $system->getById($id, 0) &&
-                strpos($system->security, 'C') === false
+                !str_contains((string) $system->security, 'C')
             ){
                 if($changedSovData = $system->updateSovereigntyData($sovData[$id])){
                     $changes['sovereignty'][] = $id;
@@ -357,9 +355,7 @@ class Universe extends AbstractCron {
             }
         }
 
-        $changedIds = array_reduce($changes, function(array $reducedIds, array $changedIds) : array {
-            return array_unique(array_merge($reducedIds, $changedIds));
-        }, []);
+        $changedIds = array_reduce($changes, fn(array $reducedIds, array $changedIds): array => array_unique(array_merge($reducedIds, $changedIds)), []);
 
         // Log --------------------------------------------------------------------------------------------------------
         $text = sprintf(self::LOG_TEXT_SOV_FW,
@@ -379,8 +375,8 @@ class Universe extends AbstractCron {
     function updateUniverseSystems(\Base $f3){
         $this->logStart(__FUNCTION__);
         /**
-         * @var $systemModel Model\Universe\SystemModel
-         * @var $system Model\Universe\SystemModel
+         * @var Model\Universe\SystemModel $systemModel
+         * @var Model\Universe\SystemModel $system
          */
         $systemModel = Model\Universe\AbstractUniverseModel::getNew('SystemModel');
         $systems = $systemModel->find( null, ['order' => 'updated', 'limit' => 2]);

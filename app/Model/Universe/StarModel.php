@@ -29,7 +29,7 @@ class StarModel extends AbstractUniverseModel {
         'typeId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\TypeModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\TypeModel::class,
             'constraint' => [
                 [
                     'table' => 'type',
@@ -64,7 +64,7 @@ class StarModel extends AbstractUniverseModel {
             'default' => null
         ],
         'system' => [
-            'has-one' => ['Exodus4D\Pathfinder\Model\Universe\SystemModel', 'starId']
+            'has-one' => [\Exodus4D\Pathfinder\Model\Universe\SystemModel::class, 'starId']
         ]
     ];
 
@@ -85,11 +85,11 @@ class StarModel extends AbstractUniverseModel {
      * @param string $accessToken
      * @param array $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '',  $additionalOptions = []){
         $data = self::getF3()->ccpClient()->send('getUniverseStar', $id);
         if(!empty($data)){
             /**
-             * @var $type TypeModel
+             * @var TypeModel $type
              */
             $type = $this->rel('typeId');
             $type->loadById($data['typeId'], $accessToken, $additionalOptions);

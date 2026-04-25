@@ -84,16 +84,14 @@ class Setup extends Controller\Controller {
      * @param array $jobsData
      * @return string
      */
-    protected function getCronHtml(array $jobsData) : string {
+    protected function getCronHtml( $jobsData) : string {
         $tplData = [
             'cronConfig' => [
                 'jobs' => $jobsData,
                 'settings' => $this->getF3()->constants(Cron::instance(), 'DEFAULT_')
             ],
             'tplCounter' => $this->counter(),
-            'tplConvertBytes' => function(){
-                return call_user_func_array([Number::instance(), 'bytesToString'], func_get_args());
-            }
+            'tplConvertBytes' => fn() => call_user_func_array([Number::instance(), 'bytesToString'], func_get_args())
         ];
         return \Template::instance()->render('templates/ui/cron_table_row.html', null, $tplData, 0);
     }
@@ -107,10 +105,10 @@ class Setup extends Controller\Controller {
      */
     public function buildIndex(\Base $f3){
         $postData = (array)$f3->get('POST');
-        $type = (string)$postData['type'];
-        $countAll = (int)$postData['countAll'];
-        $count = (int)$postData['count'];
-        $offset = (int)$postData['offset'];
+        $type = (string)($postData['type'] ?? '');
+        $countAll = (int)($postData['countAll'] ?? 0);
+        $count = (int)($postData['count'] ?? 0);
+        $offset = (int)($postData['offset'] ?? 0);
 
         $return = (object) [];
         $return->error = [];
@@ -139,9 +137,7 @@ class Setup extends Controller\Controller {
          * @param int $count
          * @return int
          */
-        $percent = function(int $countAll, int $count){
-            return $countAll ? floor((100/$countAll) * $count) : 0;
-        };
+        $percent = (fn(int $countAll, int $count) => $countAll ? floor((100/$countAll) * $count) : 0);
 
         $controller = new Controller\Ccp\Universe();
         switch($type){
@@ -228,7 +224,7 @@ class Setup extends Controller\Controller {
      */
     public function clearIndex(\Base $f3){
         $postData = (array)$f3->get('POST');
-        $type = (string)$postData['type'];
+        $type = (string)($postData['type'] ?? '');
 
         $return = (object) [];
         $return->error = [];
@@ -267,7 +263,7 @@ class Setup extends Controller\Controller {
         $info = ['countAll' => 0, 'countChunk' => 0, 'count' => 0, 'offset' => $offset];
 
         /**
-         * @var $systemStaticModel Model\Universe\SystemStaticModel
+         * @var Model\Universe\SystemStaticModel $systemStaticModel
          */
         $systemStaticModel = Model\Universe\AbstractUniverseModel::getNew('SystemStaticModel');
         if(!empty($csvData = $systemStaticModel::getCSVData($systemStaticModel->getTable()))){
@@ -322,7 +318,9 @@ class Setup extends Controller\Controller {
      */
     protected function setupSystemJumpTable(int $offset = 0, int $length = 0) : array {
         $info = ['countAll' => 0, 'countChunk' => 0, 'count' => 0, 'offset' => $offset];
-        $universeDB = $this->getDB('UNIVERSE');
+        if(!($universeDB = $this->getDB('UNIVERSE'))){
+            return $info;
+        }
 
         $query = "SELECT SQL_CALC_FOUND_ROWS
                       `system`.`id` `systemId`,
@@ -385,13 +383,9 @@ class Setup extends Controller\Controller {
         }
 
         if($info['countChunk'] = count($rows)){
-            $placeholderStr = function(string $str) : string {
-                return ':' . $str;
-            };
+            $placeholderStr = (fn(string $str): string => ':' . $str);
 
-            $updateRule = function(string $str) : string {
-                return $str . " = VALUES(" . $str . ")";
-            };
+            $updateRule = (fn(string $str): string => $str . " = VALUES(" . $str . ")");
 
             $universeDB->begin();
             foreach($rows as $row){

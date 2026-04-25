@@ -64,7 +64,7 @@ class CcpSystemsUpdate extends AbstractCron {
                 [':ns' => '0.0', ':ls' => 'L', ':hs' => 'H']
             );
 
-            $systemIds = array_map('intval', array_column($systemsData, 'id'));
+            $systemIds = array_map(intval(...), array_column($systemsData, 'id'));
             sort($systemIds, SORT_NUMERIC);
 
             $pfDB = $f3->DB->getDB('PF');
@@ -106,14 +106,14 @@ class CcpSystemsUpdate extends AbstractCron {
         $execTimePrepareSystemLogTables = $time_end - $time_start;
 
         $total = count($systemIds);
-        $offset = ($params['offset'] > 0 && $params['offset'] < $total) ? $params['offset'] : 0;
-        $systemIds = array_slice($systemIds, $offset, $params['length']);
+        $offset = (($params['offset'] ?? 0) > 0 && ($params['offset'] ?? 0) < $total) ? $params['offset'] : 0;
+        $systemIds = array_slice($systemIds, $offset, $params['length'] ?? 0);
         $importCount = count($systemIds);
         $count = 0;
 
         // switch DB for data import..
         /**
-         * @var $pfDB Sql
+         * @var Sql $pfDB
          */
         $pfDB = $f3->DB->getDB('PF');
 

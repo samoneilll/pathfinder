@@ -41,7 +41,7 @@ class LogController extends \Prefab  {
             $f3 = \Base::instance();
             if(!$f3->exists(self::CACHE_KEY_ACTIVITY_COLUMNS, $this->activityLogColumns)){
                 /**
-                 * @var $activityLogModel Pathfinder\ActivityLogModel
+                 * @var Pathfinder\ActivityLogModel $activityLogModel
                  */
                 $activityLogModel = Pathfinder\AbstractPathfinderModel::getNew('ActivityLogModel');
                 $this->activityLogColumns = $activityLogModel->getCountableColumnNames();
@@ -88,17 +88,11 @@ class LogController extends \Prefab  {
         if( !empty($this->activityLogBuffer) ){
             $db = \Base::instance()->DB->getDB('PF');
 
-            $quoteStr = function($str) use ($db) {
-                return $db->quotekey($str);
-            };
+            $quoteStr = (fn($str) => $db->quotekey($str));
 
-            $placeholderStr = function($str){
-                return ':' . $str;
-            };
+            $placeholderStr = (fn($str) => ':' . $str);
 
-            $updateRule = function($str){
-                return $str . " = " . $str . " + VALUES(" . $str . ")";
-            };
+            $updateRule = (fn($str) => $str . " = " . $str . " + VALUES(" . $str . ")");
 
             $year = (int)date('o');
             $yearWeek = (int)date('W');

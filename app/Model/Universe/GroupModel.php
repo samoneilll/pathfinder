@@ -40,7 +40,7 @@ class GroupModel extends AbstractUniverseModel {
         'categoryId' => [
             'type' => Schema::DT_INT,
             'index' => true,
-            'belongs-to-one' => 'Exodus4D\Pathfinder\Model\Universe\CategoryModel',
+            'belongs-to-one' => \Exodus4D\Pathfinder\Model\Universe\CategoryModel::class,
             'constraint' => [
                 [
                     'table' => 'category',
@@ -50,7 +50,7 @@ class GroupModel extends AbstractUniverseModel {
             'validate' => 'notDry'
         ],
         'types' => [
-            'has-many' => ['Exodus4D\Pathfinder\Model\Universe\TypeModel', 'groupId']
+            'has-many' => [\Exodus4D\Pathfinder\Model\Universe\TypeModel::class, 'groupId']
         ]
     ];
 
@@ -124,7 +124,7 @@ class GroupModel extends AbstractUniverseModel {
     protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
         if(!empty($data = self::getUniverseGroupData($id))){
             /**
-             * @var $category CategoryModel
+             * @var CategoryModel $category
              */
             $category = $this->rel('categoryId');
             $category->loadById($data['categoryId'], $accessToken, $additionalOptions);
@@ -158,7 +158,7 @@ class GroupModel extends AbstractUniverseModel {
             $info['countChunk'] = count($data['types']);
             foreach($data['types'] as $typeId){
                 /**
-                 * @var $type TypeModel
+                 * @var TypeModel $type
                  */
                 $type = $this->rel('types');
                 $type->storeDogmaAttributes = $this->storeDogmaAttributes;
