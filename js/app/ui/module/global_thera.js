@@ -175,15 +175,16 @@ define([
                         targets: 1,
                         name: 'trueSec',
                         title: 'sec',
-                        width: 15,
+                        width: 10,
                         className:'text-center',
-                        data: 'target.trueSec',
+                        data: 'target.system_class',
                         defaultContent: module.getIconForUndefinedCellValue(),
                         render: {
                             display: (cellData, type, rowData, meta) => {
                                 if(cellData !== undefined){
                                     let systemTrueSecClass = BaseModule.Util.getTrueSecClassForSystem(cellData);
                                     return '<span class="' + systemTrueSecClass + '">' + cellData.toFixed(1) + '</span>';
+                                    return cellData
                                 }
                             }
                         }
@@ -221,12 +222,12 @@ define([
                         targets: 4,
                         name: 'outSig',
                         title: '<i title="Out signature" data-toggle="tooltip" class="fas fa-sign-out-alt fa-rotate-270"></i>',
-                        width: 12,
+                        width: 20,
                         className: ['text-center', module._config.fontUppercaseClass].join(' '),
                         data: 'sourceSignature',
                         defaultContent: module.getIconForUndefinedCellValue(),
                         render: {
-                            _: 'name'
+                            _: 'short_name'
                         }
                     },{
                         targets: 5,
@@ -241,12 +242,12 @@ define([
                         targets: 6,
                         name: 'inSig',
                         title: '<i title="In signature" data-toggle="tooltip" class="fas fa-sign-in-alt fa-rotate-90"></i>',
-                        width: 12,
+                        width: 20,
                         className: ['text-center', module._config.fontUppercaseClass].join(' '),
                         data: 'targetSignature',
                         defaultContent: module.getIconForUndefinedCellValue(),
                         render: {
-                            _: 'name'
+                            _: 'short_name'
                         }
                     },{
                         targets: 7,
@@ -279,15 +280,11 @@ define([
                         defaultContent: module.getIconForUndefinedCellValue(),
                         render: {
                             display: (cellData, type, rowData, meta) => {
-                                try{
-                                    let timeNow = (new Date()).getTime();
-                                    let timeEol = Date.parse(cellData);
-                                    if(!isNaN(timeNow) && !isNaN(timeEol) ){
-                                        let diff = (timeEol - timeNow) / 1000;
-                                        diff /= (60 * 60);
-                                        return `< ${Math.ceil(diff)}h`;
-                                    }
-                                }catch(e){}
+                                if(cellData > 0){
+                                    return `< ${cellData}h`;
+                                } else if (cellData == 0 ){
+                                    return `< 1h`;
+                                }
                             },
                             sort: dateVal => Date.parse(dateVal)
                         }

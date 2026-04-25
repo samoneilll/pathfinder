@@ -3,6 +3,7 @@
 
 namespace Exodus4D\Pathfinder\Controller\Api\Rest;
 
+use Exodus4D\Pathfinder\Controller\Ccp\Universe;
 use Exodus4D\Pathfinder\Lib\Config;
 
 class SystemThera extends AbstractRestController {
@@ -35,7 +36,6 @@ class SystemThera extends AbstractRestController {
      */
     protected function getEveScoutTheraConnections() : array {
         $connectionsData = [];
-
         /**
          * map system data from eveScout response to Pathfinder´s 'system' format
          * @param string $key
@@ -44,17 +44,19 @@ class SystemThera extends AbstractRestController {
          */
         $enrichWithSystemData = function(string $key, array $eveScoutConnection, array &$connectionData) : void {
             $eveScoutSystem = (array)$eveScoutConnection[$key];
+            $universe = new Universe();
+            $staticData = $universe->getSystemData($eveScoutSystem['id']);
+
             $systemData = [
-                'id' => (int)$eveScoutSystem['id'],
-                'name' => (string)$eveScoutSystem['name'],
-                'trueSec' => round((float)$eveScoutSystem['security'], 4)
+                'id' => (int)$staticData->id,
+                'name' => (string)$staticData->name,
+                'system_class' => round((float)$staticData->trueSec, 4),
+                'constellation' => ['id' => (int)$staticData->constellation->id],
+                'region' => [
+                    'id' => (int)$staticData->constellation->region->id,
+                    'name' => (string)$staticData->constellation->region->name
+                ]
             ];
-            if(!empty($eveScoutSystem['constellationID'])){
-                $systemData['constellation'] = ['id' => (int)$eveScoutSystem['constellationID']];
-            }
-            if(!empty($region = (array)$eveScoutSystem['region']) && !empty($region['id'])){
-                $systemData['region'] = ['id' => (int)$region['id'], 'name' => (string)$region['name']];
-            }
             $connectionData[$key] = $systemData;
         };
 
@@ -66,10 +68,14 @@ class SystemThera extends AbstractRestController {
         $enrichWithSignatureData = function(string $key, array $eveScoutConnection, array &$connectionData) : void {
             $eveScoutSignature = (array)$eveScoutConnection[$key];
             $signatureData = [
-                'name' => $eveScoutSignature['name'] ? : null
+                'name' => $eveScoutSignature['name'] ? : null,
+                'short_name' => str_split($eveScoutSignature['name'],3)[0] ? : null
             ];
-            if(!empty($sigType = (array)$eveScoutSignature['type']) && !empty($sigType['name'])){
-                $signatureData['type'] = ['name' => strtoupper((string)$sigType['name'])];
+            if($key == 'sourceSignature' && $eveScoutConnection['wh_exits_outward']) {
+                $signatureData['type'] = ['name' => strtoupper((string)$eveScoutConnection['wh_type'])];
+            }
+            if($key == 'targetSignature' && !$eveScoutConnection['wh_exits_outware']) {
+                $signatureData['type'] = ['name' => strtoupper((string)$eveScoutConnection['wh_type'])];
             }
             $connectionData[$key] = $signatureData;
         };
@@ -81,17 +87,31 @@ class SystemThera extends AbstractRestController {
          */
         $enrichWithWormholeData = function(array $wormholeData, array &$connectionsData) : void {
             $type = [];
-            if($wormholeData['mass'] === 'reduced'){
-                $type[] = 'wh_reduced';
-            }else if($wormholeData['mass'] === 'critical'){
-                $type[] = 'wh_critical';
-            }else{
-                $type[] = 'wh_fresh';
-            }
+            $type[] = 'wh_fresh';
 
-            if($wormholeData['eol'] === 'critical'){
+            if($wormholeData['estimatedEol'] <= 4){
                 $type[] = 'wh_eol';
             }
+            switch($wormholeData['jumpMass']) {
+                case "capital":
+                    $type[] = 'wh_jump_mass_xl';
+                    break;
+                case "xlarge":
+                    $type[] = 'wh_jump_mass_xl';
+                    break;
+                case "large":
+                    $type[] = 'wh_jump_mass_l';
+                    break;
+                case "medium":
+                    $type[] = 'wh_jump_mass_m';
+                    break;
+                case "small":
+                    $type[] = 'wh_jump_mass_s';
+                    break;
+                default:
+                    break;
+            }
+
             $connectionsData['type'] = $type;
             $connectionsData['estimatedEol'] = $wormholeData['estimatedEol'];
         };
@@ -101,7 +121,8 @@ class SystemThera extends AbstractRestController {
             foreach((array)$eveScoutResponse['connections'] as $eveScoutConnection){
                 if(
                     $eveScoutConnection['type'] === 'wormhole' &&
-                    isset($eveScoutConnection['source']) && isset($eveScoutConnection['target'])
+                    isset($eveScoutConnection['source']) && isset($eveScoutConnection['target']) &&
+                    $eveScoutConnection['source']['id'] === 31000005 // Check it's thera and not a turnur connection
                 ){
                     try{
                         $data = [

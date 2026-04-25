@@ -6,7 +6,7 @@
  * proofed, signature names (copy & paste from scanning window)
  */
 
- define([], () => {
+define([], () => {
     'use strict';
 
     // signature sources
@@ -227,6 +227,38 @@
         2: 'Unsecured Core Emergence' //*
     };
 
+    // Ghost sites ======================================================================================================
+
+    let hsGh = {
+        1: 'Lesser Serpentis Covert Research Facility',
+        2: 'Lesser Sansha Covert Research Facility',
+        3: 'Lesser Guristas Covert Research Facility',
+        4: 'Lesser Blood Raiders Covert Research Facility'
+    };
+
+    let lsGh = {
+        1: 'Standard Serpentis Covert Research Facility',
+        2: 'Standard Sansha Covert Research Facility',
+        3: 'Standard Guristas Covert Research Facility',
+        4: 'Standard Blood Raiders Covert Research Facility'
+    };
+
+    let nsGh = {
+        1: 'Improved Serpentis Covert Research Facility',
+        2: 'Improved Sansha Covert Research Facility',
+        3: 'Improved Guristas Covert Research Facility',
+        4: 'Improved Blood Raiders Covert Research Facility'
+    };
+
+    let whGh = {
+        1: 'Superior Serpentis Covert Research Facility',
+        2: 'Superior Sansha Covert Research Facility',
+        3: 'Superior Guristas Covert Research Facility',
+        4: 'Superior Blood Raiders Covert Research Facility'
+    };
+
+
+
     // Gas sites ======================================================================================================
 
     let c1Gas = {
@@ -365,8 +397,9 @@
         6:  'S804 - C6',
         7:  'N110 - H',
         8:  'J244 - L',
-        9:  'Z060 - 0.0',
-        10: 'F353 - C12 Thera'
+        9:  'J377 - L Turnur',
+        10:  'Z060 - 0.0',
+        11: 'F353 - C12 Thera'
     };
 
     // all w-space -> w-space are statics or K162
@@ -379,9 +412,10 @@
         6:  'R474 - C6',
         7:  'B274 - H',
         8:  'A239 - L',
-        9:  'E545 - 0.0',
-        10: 'F135 - C12 Thera',
-        11: 'F216 - T Pochven'
+        9:  'J377 - L Turnur',
+        10: 'E545 - 0.0',
+        11: 'F135 - C12 Thera',
+        12: 'F216 - T Pochven'
     };
 
     // all k-space exits are static or K162
@@ -394,9 +428,10 @@
         6:  'A982 - C6',
         7:  'D845 - H',
         8:  'U210 - L',
-        9:  'K346 - 0.0',
-        10: 'F135 - C12 Thera',
-        11: 'F216 - T Pochven'
+        9:  'J377 - L Turnur',
+        10: 'K346 - 0.0',
+        11: 'F135 - C12 Thera',
+        12: 'F216 - T Pochven'
     };
 
     // no *wandering* w-space -> w-space
@@ -410,8 +445,9 @@
         6:  'U574 - C6',
         7:  'S047 - H',
         8:  'N290 - L',
-        9:  'K329 - 0.0',
-        10: 'F216 - T Pochven'
+        9:  'J377 - L Turnur',
+        10: 'K329 - 0.0',
+        11: 'F216 - T Pochven'
     };
 
     let c5WH = {
@@ -423,8 +459,9 @@
         6:  'V753 - C6',
         7:  'D792 - H',
         8:  'C140 - L',
-        9:  'Z142 - 0.0',
-        10: 'F216 - T Pochven'
+        9:  'J377 - L Turnur',
+        10: 'Z142 - 0.0',
+        11: 'F216 - T Pochven'
     };
 
     let c6WH = {
@@ -438,9 +475,10 @@
         8:  'D792 - H',
         9:  'C140 - L',
         10: 'C391 - L',
-        11: 'C248 - 0.0',
-        12: 'Z142 - 0.0',
-        13: 'F216 - T Pochven'
+        11: 'J377 - L Turnur',
+        12: 'C248 - 0.0',
+        13: 'Z142 - 0.0',
+        14: 'F216 - T Pochven'
     };
 
     // Shattered WH (some of them are static)
@@ -470,12 +508,13 @@
         23: 'A239 - L',
         24: 'C391 - L',
         25: 'J244 - L',
-        26: 'U201 - L',    // ??
-        27: 'U210 - L',
-        28: 'C248 - 0.0',
-        29: 'E545 - 0.0',
-        30: 'K346 - 0.0',
-        31: 'Z060 - 0.0'
+        26: 'J377 - L Turnur',
+        27: 'U201 - L',    // ??
+        28: 'U210 - L',
+        29: 'C248 - 0.0',
+        30: 'E545 - 0.0',
+        31: 'K346 - 0.0',
+        32: 'Z060 - 0.0'
     };
 
     let hsWH = {
@@ -487,9 +526,10 @@
         6: 'B041 - C6',
         7: 'A641 - H',
         8: 'R051 - L',
-        9: 'V283 - 0.0',
-        10: 'T458 - C12 Thera',
-        11: 'C729 - T Pochven'
+        9: 'J377 - L Turnur',
+        10: 'V283 - 0.0',
+        11: 'T458 - C12 Thera',
+        12: 'C729 - T Pochven'
     };
 
     let lsWH = {
@@ -501,9 +541,10 @@
         6: 'U319 - C6',
         7: 'B449 - H',
         8: 'N944 - L',
-        9: 'S199 - 0.0',
-        10: 'M164 - C12 Thera',
-        11: 'C729 - T Pochven'
+        9: 'J377 - L Turnur',
+        10: 'S199 - 0.0',
+        11: 'M164 - C12 Thera',
+        12: 'C729 - T Pochven'
     };
 
     let nullWH = {
@@ -515,10 +556,11 @@
         6: 'U319 - C6',
         7: 'B449 - H',
         8: 'N944 - L',
-        9: 'S199 - 0.0',
-        10: 'L031 - C12 Thera',
-        11: 'C729 - T Pochven',
-        12: 'U372 - T Pochven'
+        9: 'J377 - L Turnur',
+        10: 'S199 - 0.0',
+        11: 'L031 - C12 Thera',
+        12: 'C729 - T Pochven',
+        13: 'U372 - T Pochven'
     };
 
     let pochWH = {
@@ -540,7 +582,7 @@
                 4: c1Gas,
                 5: c1WH,
                 6: c1Ore,
-                7: {}    // Ghost
+                7: whGh
             },
             2: {    // C2
                 1: c2Combat,
@@ -549,7 +591,7 @@
                 4: c2Gas,
                 5: c2WH,
                 6: c2Ore,
-                7: {}    // Ghost
+                7: whGh
             },
             3: {    // C3
                 1: c3Combat,
@@ -558,7 +600,7 @@
                 4: c3Gas,
                 5: c3WH,
                 6: c3Ore,
-                7: {}    // Ghost
+                7: whGh
             },
             4: {    // C4
                 1: c4Combat,
@@ -567,7 +609,7 @@
                 4: c4Gas,
                 5: c4WH,
                 6: c4Ore,
-                7: {}    // Ghost
+                7: whGh
             },
             5: {    // C5
                 1: c5Combat,
@@ -576,7 +618,7 @@
                 4: c5Gas,
                 5: c5WH,
                 6: c5Ore,
-                7: {}    // Ghost
+                7: whGh
             },
             6: {    // C6
                 1: c6Combat,
@@ -585,16 +627,15 @@
                 4: c6Gas,
                 5: c6WH,
                 6: c6Ore,
-                7: {    // Ghost
-                    1: 'Superior Blood Raider Covert Research Facility' //*
-                }
+                7: whGh
             },
             12: {   // Thera WH
                 1: c12Combat
             },
             13: {   // Shattered WH
                 5: c13WH,
-                6: c13Ore
+                6: c13Ore,
+                7: whGh
             },
             14: {   // Drifter Sentinel WH
                 1: c14Combat
@@ -614,13 +655,16 @@
         }, // system type (k-space)
         2: {
             30: {   // High Sec
-                5: hsWH
+                5: hsWH,
+                7: hsGh
             },
             31: {   // Low Sec
-                5: lsWH
+                5: lsWH,
+                7: lsGh
             },
             32: {   // 0.0
-                5: nullWH
+                5: nullWH,
+                7: nsGh
             },
             33: {   // Pochven
                 5: pochWH
