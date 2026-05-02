@@ -859,13 +859,16 @@ define([
             let selectElement = $(this);
             selectElement.select2(options);
 
-            // initial open dropDown
-            if( !parseInt(selectElement.val()) ){
-                // setTimeout() required because of dropDown positioning
-                setTimeout(() => {
+            // select2's _bindAdapters registers an async event listener that fires
+            // toggleDropdown → open even when a value is already set. Suppress it by
+            // closing in the next macrotask (after the async open fires), then re-open
+            // only when no type is selected yet.
+            setTimeout(() => {
+                selectElement.select2('close');
+                if( !parseInt(selectElement.val()) ){
                     selectElement.select2('open');
-                }, 0);
-            }
+                }
+            }, 0);
         });
     };
 

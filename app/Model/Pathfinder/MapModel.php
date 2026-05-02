@@ -263,7 +263,7 @@ class MapModel extends AbstractMapTrackingModel {
             $mapData->persistentAliases                     = $this->persistentAliases;
             $mapData->persistentSignatures                  = $this->persistentSignatures;
             $mapData->trackAbyssalJumps                     = $this->trackAbyssalJumps;
-            $mapData->nextBookmarks                         = $this->nextBookmarks;
+            $mapData->nextBookmarks                         = SystemTag::nextBookmarks($this);
             $mapData->allowUnknownSystems                   = $this->allowUnknownSystems;
             $mapData->granularK162                          = $this->granularK162;
             $mapData->allowGroups                           = $this->allowGroups;
@@ -520,7 +520,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @return SystemModel
      * @throws \Exception
      */
-    public function getNewSystem(?int $systemId, ?string $securityClass = null) : SystemModel {
+    public function getNewSystem(?int $systemId, ?string $securityClass = null, ?SystemModel $sourceSystem = null) : SystemModel {
         // check for "inactive" system (only for known systems)
         $system = ($systemId !== null) ? $this->getSystemByCCPId($systemId) : null;
         if(is_null($system)){
@@ -535,7 +535,7 @@ class MapModel extends AbstractMapTrackingModel {
                 $system->securityClass = $securityClass;
             }
             $system->setType();
-            $system->tag = SystemTag::generateFor($system, $system, $this);
+            $system->tag = SystemTag::generateFor($system, $sourceSystem ?? $system, $this);
         }
 
         $system->setActive(true);

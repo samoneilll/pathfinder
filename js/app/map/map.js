@@ -33,6 +33,7 @@ define([
         systemSelectedClass: 'pf-system-selected',                      // class for selected systems on a map
         systemHeadClass: 'pf-system-head',                              // class for system head
         systemHeadNameClass: 'pf-system-head-name',                     // class for system name
+        systemHeadTagClass: 'pf-system-head-tag',                       // class for system tag
         systemHeadCounterClass: 'pf-system-head-counter',               // class for system user counter
         systemHeadExpandClass: 'pf-system-head-expand',                 // class for system head expand arrow
         systemHeadInfoClass: 'pf-system-head-info',                     // class for system info
@@ -439,7 +440,7 @@ define([
             let effectBasicClass = MapUtil.getEffectInfoForSystem('effect', 'class');
             let effectClass = data.isUnknown ? '' : MapUtil.getEffectInfoForSystem(data.effect, 'class');
             let secClass = data.isUnknown ? Util.getSecurityClassForSystem(data.securityClass) : Util.getSecurityClassForSystem(data.security);
-            let secText = data.isUnknown ? (data.securityClass || '?') : data.security;
+            let secText = data.isUnknown ? (data.securityClass || '?') : MapUtil.getSystemSecurityForDisplay(data.security);
 
             system = $('<div>', {
                 id: systemId,
@@ -452,6 +453,9 @@ define([
                         class: [config.systemSec, secClass].join(' '),
                         text: secText
                     }),
+                    $('<span>', {
+                        class: [config.systemHeadTagClass, secClass].join(' ')
+                    }).attr('data-value', data.tag),
                     // System name is editable
                     $('<span>', {
                         class: systemHeadClasses.join(' '),
@@ -536,6 +540,11 @@ define([
                 alias = data.alias ? data.alias : data.name;
                 system.find('.' + config.systemHeadNameClass).editable('setValue', alias);
             }
+
+            let tag = system.getSystemInfo(['tag']);
+            if(tag !== data.tag){
+                system.find('.' + config.systemHeadTagClass).editable('setValue', data.tag);
+            }
         }
 
         // set system status
@@ -546,6 +555,7 @@ define([
         system.data('securityClass', data.securityClass || null);
         system.toggleClass('pf-system-unknown', Boolean(data.isUnknown));
         system.data('name', data.name);
+        system.data('tag', data.tag);
         system.data('typeId', parseInt(data.type.id));
         system.data('effect', data.effect);
         system.data('security', data.security);
@@ -1811,9 +1821,11 @@ define([
      */
     let makeEditable = system => {
         system = $(system);
-        let headElement = $(system).find('.' + config.systemHeadNameClass);
+        let nameElement = $(system).find('.' + config.systemHeadNameClass);
+        let tagElement = $(system).find('.' + config.systemHeadTagClass);
+        let headElements = $(nameElement).add($(tagElement));
 
-        headElement.editable({
+        nameElement.editable({
             mode: 'popup',
             type: 'text',
             name: 'alias',
@@ -1825,12 +1837,31 @@ define([
             showbuttons: false
         });
 
-        headElement.on('save', function(e, params){
-            // system alias changed -> mark system as updated
+        tagElement.editable({
+            mode: 'popup',
+            type: 'text',
+            name: 'tag',
+            emptytext: '',
+            title: 'System tag',
+            placement: 'top',
+            onblur: 'submit',
+            container: 'body',
+            toggle: 'manual',       // is triggered manually on dblClick
+            showbuttons: false,
+            display: function(value){
+                if(String(value).length){
+                    value += ' ';
+                }
+                $(this).text(value);
+            }
+        });
+
+        headElements.on('save', function(e, params){
+            // system alias/tag changed -> mark system as updated
             MapUtil.markAsChanged(system);
         });
 
-        headElement.on('shown', function(e, editable){
+        headElements.on('shown', function(e, editable){
             // hide tooltip when xEditable is visible
             system.toggleSystemTooltip('hide', {});
 
@@ -1843,7 +1874,7 @@ define([
             }, 0, inputElement);
         });
 
-        headElement.on('hidden', function(e, editable){
+        headElements.on('hidden', function(e, editable){
             // show tooltip "again" on xEditable hidden
             system.toggleSystemTooltip('show', {show: true});
 
@@ -2239,13 +2270,23 @@ define([
         let double = function(e){
             e.stopPropagation(); // if not xEditable triggers page reload #945
             let system = $(this);
-            let headElement = $(system).find('.' + config.systemHeadNameClass);
+            let target = $(e.target);
+            let headElement;
+
+            if(target.hasClass(config.systemHeadTagClass)){
+                headElement = system.find('.' + config.systemHeadTagClass);
+            }else{
+                headElement = system.find('.' + config.systemHeadNameClass);
+            }
+
+            if(!headElement.hasClass('editable')){
+                return;
+            }
 
             // update z-index for system, editable field should be on top
             // move them to the "top"
             $(system).updateSystemZIndex();
 
-            // show "set alias" input (x-editable)
             headElement.editable('show');
         };
 
@@ -3052,6 +3093,17 @@ define([
 
                     systemInfo.push(alias );
                     break;
+                case 'tag':
+                    // get current system tag
+                    let systemHeadTagElement = $(this).find('.' + config.systemHeadTagClass);
+                    let tag = '';
+                    if(systemHeadTagElement.hasClass('editable')){
+                        // xEditable is initiated
+                        tag = systemHeadTagElement.editable('getValue', true);
+                    }
+
+                    systemInfo.push(tag);
+                    break;
                 default:
                     systemInfo.push('bad system query');
             }
@@ -3282,6 +3334,7 @@ define([
                 systemId: data.systemId !== null ? parseInt(data.systemId) : null,
                 name: data.name,
                 alias: system.getSystemInfo(['alias']),
+                tag: system.getSystemInfo(['tag']),
                 effect: data.effect,
                 type: {
                     id: data.typeId

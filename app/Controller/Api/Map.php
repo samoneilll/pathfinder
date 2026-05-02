@@ -9,6 +9,7 @@
 namespace Exodus4D\Pathfinder\Controller\Api;
 
 use Exodus4D\Pathfinder\Lib\Config;
+use Exodus4D\Pathfinder\Lib\SystemTag;
 use Exodus4D\Pathfinder\Controller;
 use Exodus4D\Pathfinder\Data\File\FileHandler;
 use Exodus4D\Pathfinder\Model\AbstractModel;
@@ -557,7 +558,7 @@ class Map extends Controller\AccessController {
                         foreach($systems as $i => $systemData){
                             // check if current system belongs to the current map
                             if($system = $map->getSystemById((int)$systemData['id'])){
-                                $system->copyfrom($systemData, ['alias', 'status', 'position', 'locked', 'rallyUpdated', 'rallyPoke']);
+                                $system->copyfrom($systemData, ['alias', 'tag', 'status', 'position', 'locked', 'rallyUpdated', 'rallyPoke']);
                                 if($system->save($character)){
                                     if(!in_array($map->_id, $mapIdsChanged)){
                                         $mapIdsChanged[] = $map->_id;
@@ -795,13 +796,20 @@ class Map extends Controller\AccessController {
                     if($targetSystem){
                         $targetExists = true;
 
-                        if($targetSystemId === (int)$currentPosition['systemId']){
+                        if(isset($currentPosition['systemId']) && $targetSystemId === (int)$currentPosition['systemId']){
                             $systemPosX = (int)$currentPosition['position']['x'];
                             $systemPosY = (int)$currentPosition['position']['y'];
                         }
                     }else{
-                        $targetSystem = $map->getNewSystem($targetSystemId);
+                        $targetSystem = $map->getNewSystem($targetSystemId, null, $sourceSystem);
                     }
+                }
+
+                // Re-generate source tag now that both systems are known.
+                // getNewSystem only has self-referential context when building the source,
+                // so the initial tag may have been computed without the correct peer system.
+                if(!$sourceExists && $sourceSystem && $targetSystem && !$sameSystem){
+                    $sourceSystem->tag = SystemTag::generateFor($sourceSystem, $targetSystem, $map);
                 }
 
                 // make sure we have system objects to work with

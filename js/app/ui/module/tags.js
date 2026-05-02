@@ -50,21 +50,25 @@ define([
             super.init();
         }   
         
-        getTagList(mapId){                
+        getTagList(mapId){
             let currentTags = [];
             let securityClasses = ['H', 'L', '0.0', 'C1', 'C2', 'C3', 'C4', 'C5', 'C6'];
 
             let activeMap = BaseModule.Util.getMapModule().getActiveMap();
             if(activeMap){
                 var mapData = Util.getCurrentMapData(mapId);
-                currentTags = JSON.parse(mapData.config.nextBookmarks);
+                try {
+                    currentTags = JSON.parse(mapData.config.nextBookmarks) || [];
+                } catch(e) {
+                    currentTags = [];
+                }
             }
 
             currentTags.forEach(function(item, index, arr){
-                arr[index] = [securityClasses[index]];            
+                arr[index] = [securityClasses[index]];
                 item.forEach(tag => {
                    arr[index].push(tag)
-                })  
+                })
               })
             return currentTags;
         }
@@ -76,7 +80,7 @@ define([
                 style: "width: 90%; text-align: center; margin-left: auto; margin-right: auto;"
             });            
             
-            for (var i = 0; i < tagsArr[0].length; i++) {
+            for (var i = 0; i < (tagsArr[0] ? tagsArr[0].length : 0); i++) {
                 let tagsRow = tagsTable.insertRow();
                 tagsArr.forEach(tags => {                    
                     let tagsCell = Object.assign(tagsRow.insertCell(), {                    

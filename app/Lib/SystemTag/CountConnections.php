@@ -18,47 +18,46 @@ class CountConnections implements SystemTagInterface
      * @throws \Exception
      */
     static function generateFor(SystemModel $targetSystem, SystemModel $sourceSystem, MapModel $map) : ?string
-    {                       
-        // set target class for new system being added to the map
+    {
         $targetClass = $targetSystem->security;
-        
-        // Get all systems from active map
-        $systems = $map->getSystemsData();
-                
-        // empty array to append tags to,        
-        // iterate over systems and append tag to $tags if security matches targetSystem security 
-        // and it is not our home (locked)
-        $tags = array();
-        foreach ($systems as $system) {
-            if ($system->security === $targetClass && !$system->locked && $system->tag) {
-                array_push($tags, SystemTag::tagToInt($system->tag));
-            }
-        };
 
-        // try to assign "s(tatic)" tag to connections from our home by checking if source is locked, 
-        // if dest is static, and finally if "s" (18) tag is already taken
-        if ($sourceSystem->locked){
-            if($targetClass == "C5" || $targetClass == "0.0" ){
-                if(!in_array(18, $tags)) {
-                    return 's';
-                }
+        $config = \Exodus4D\Pathfinder\Lib\Config::getPathfinderData('systemtag');
+        $homeSystemId = isset($config['HOMESYSTEM']) ? (int)$config['HOMESYSTEM'] : null;
+
+        // Collect existing tags for systems of the same security class (excluding locked/home systems)
+        $tags = [];
+        foreach ($map->getSystemsData() as $system) {
+            if ($system->security === $targetClass && !$system->locked && $system->tag) {
+                $tags[] = SystemTag::tagToInt($system->tag);
             }
         }
 
-        // return 'a' if array is empty
-        if (count($tags) === 0) {            
+        // Assign the "s" (static) tag if either endpoint is the home system and the other is C5 or null-sec
+        $sourceId = $sourceSystem->systemId;
+        $targetId = $targetSystem->systemId;
+        $connectionInvolvesHome = $homeSystemId !== null && ($sourceId === $homeSystemId || $targetId === $homeSystemId);
+        $otherSystem = ($sourceId === $homeSystemId) ? $targetSystem : $sourceSystem;
+        $otherClass  = $otherSystem->security;
+
+        $isStaticCandidate = $connectionInvolvesHome && ($otherClass === 'C5' || $otherClass === '0.0');
+        if ($isStaticCandidate && !in_array(18, $tags)) {
+            return 's';
+        }
+        // If $isStaticCandidate but "s" is already taken, fall through to normal counting logic
+
+        // Return 'a' for the first system of this class on the map
+        if (empty($tags)) {
             return 'a';
         }
 
-        // sort and uniq tags array and iterate to return first empty value 
+        // Find the first unused tag slot
         sort($tags);
-        $tags = array_unique($tags);           
+        $tags = array_unique($tags);
         $i = 0;
-        while($tags[$i] == $i) {
+        while (isset($tags[$i]) && $tags[$i] == $i) {
             $i++;
         }
-        
-        $char = SystemTag::intToTag($i);        
-        return $char;
+
+        return SystemTag::intToTag($i);
     }
 }

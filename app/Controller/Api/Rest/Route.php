@@ -426,16 +426,17 @@ class Route extends AbstractRestController {
      * @return null
      */
     private function getSystemInfoBySystemId(int $systemId, string $option){
-        $info = null;
-        $info = match ($option) {
-            'systemName' => $this->nameArray[$systemId][0],
-            'regionId' => $this->nameArray[$systemId][1],
-            'constellationId' => $this->nameArray[$systemId][2],
-            'trueSec' => $this->nameArray[$systemId][3],
-            default => $info,
+        $row = $this->nameArray[$systemId] ?? null;
+        if (!is_array($row)) {
+            return null;
+        }
+        return match ($option) {
+            'systemName'      => $row[0] ?? null,
+            'regionId'        => $row[1] ?? null,
+            'constellationId' => $row[2] ?? null,
+            'trueSec'         => $row[3] ?? null,
+            default           => null,
         };
-
-        return $info;
     }
 
     /**

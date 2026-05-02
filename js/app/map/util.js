@@ -262,7 +262,7 @@ define([
             'H': 'hs',
             'T': 'tr'
         };
-        return securityMapping.hasOwnProperty(security) ? securityMapping[security] : security;
+        return securityMapping.hasOwnProperty(security) ? securityMapping[security] : security.toLowerCase();
     };
 
     let getSystemSecurityForClass = (security) => {        
