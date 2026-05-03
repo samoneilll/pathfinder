@@ -539,7 +539,7 @@ define([
                     }
                     let reason = payload.data.status + ' ' + payload.data.error;
                     this.showNotify({
-                        title: payload.data.jqXHR.status + ': System route data',
+                        title: (payload.data.jqXHR ? payload.data.jqXHR.status : '') + ': System route data',
                         text: reason,
                         type: 'warning'
                     });
