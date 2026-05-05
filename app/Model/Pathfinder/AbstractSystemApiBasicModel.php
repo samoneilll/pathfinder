@@ -43,7 +43,7 @@ abstract class AbstractSystemApiBasicModel extends AbstractPathfinderModel {
         $data               = (object)[];
         $data->systemId     = $this->getRaw('systemId');
         $data->values       = $this->getValues();
-        $data->updated      = $this->updated ? strtotime($this->updated) : 0;
+        $data->updated      = $this->updated ? strtotime($this->updated) : null;
 
         return $data;
     }
