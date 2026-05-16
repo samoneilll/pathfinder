@@ -18,7 +18,7 @@ class ConnectionLogModel extends AbstractPathfinderModel {
     protected $table = 'connection_log';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -75,9 +75,9 @@ class ConnectionLogModel extends AbstractPathfinderModel {
 
     /**
      * set data by associative array
-     * @param array $data
+     * @param array<string, mixed> $data
      */
-    public function setData( $data){
+    public function setData( $data): void{
         $this->copyfrom($data, ['shipTypeId', 'shipTypeName', 'shipMass', 'characterId', 'characterName']);
     }
 
@@ -134,6 +134,7 @@ class ConnectionLogModel extends AbstractPathfinderModel {
      * @param CharacterModel $characterModel
      * @return bool
      */
+    #[\Override]
     public function hasAccess(CharacterModel $characterModel) : bool {
         $access = false;
         if( !$this->dry() ){

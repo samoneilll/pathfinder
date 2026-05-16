@@ -52,7 +52,7 @@ class Controller {
     /**
      * @param string $template
      */
-    protected function setTemplate(string $template){
+    protected function setTemplate(string $template): void {
         $this->template = $template;
     }
 
@@ -87,7 +87,7 @@ class Controller {
      * @param $params
      * @return bool
      */
-    function beforeroute(\Base $f3,  $params) : bool {
+    function beforeroute(\Base $f3,  array $params) : bool {
         // init user session
         $this->initSession($f3);
 
@@ -115,7 +115,7 @@ class Controller {
      * -> render view
      * @param \Base $f3
      */
-    public function afterroute(\Base $f3){
+    public function afterroute(\Base $f3): void{
         // send preload/prefetch headers
         $resource = Resource::instance();
         if($resource->getOption('output') === 'header'){
@@ -214,7 +214,7 @@ class Controller {
      * -> or get multiple cookies by their name (search by prefix)
      * @param $cookieName
      * @param bool $prefix
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getCookieByName(string $cookieName, bool $prefix = false) : array {
         $data = [];
@@ -243,7 +243,7 @@ class Controller {
      * @param Pathfinder\CharacterModel $character
      * @throws \Exception
      */
-    protected function setLoginCookie(Pathfinder\CharacterModel $character){
+    protected function setLoginCookie(Pathfinder\CharacterModel $character): void {
         if( $this->getCookieState() ){
             $expireSeconds = (int)Config::getPathfinderData('login.cookie_expire');
             $expireSeconds *= 24 * 60 * 60;
@@ -257,12 +257,11 @@ class Controller {
             // unique "selector" -> to facilitate database look-ups (small size)
             // -> This is preferable to simply using the database id field,
             // which leaks the number of active users on the application
-            $selector = bin2hex( openssl_random_pseudo_bytes(12) );
+            $selector = bin2hex( random_bytes(16) );
 
             // generate unique "validator" (strong encryption)
             // -> plaintext set to user (cookie), hashed version of this in DB
-            $size = openssl_cipher_iv_length('aes-256-cbc');
-            $validator = bin2hex(openssl_random_pseudo_bytes($size) );
+            $validator = bin2hex( random_bytes(16) );
 
             // generate unique cookie token
             $token = hash('sha256', $validator);
@@ -295,12 +294,12 @@ class Controller {
      * -> validate characters
      * -> cf. Sso->requestAuthorization() ( equivalent DB based login)
      *
-     * @param array $cookieData
+     * @param array<string, mixed> $cookieData
      * @param bool $checkAuthorization
      * @return Pathfinder\CharacterModel[]
      * @throws \Exception
      */
-    protected function getCookieCharacters( $cookieData = [], bool $checkAuthorization = true) : array {
+    protected function getCookieCharacters( $cookieData = [], bool $checkAuthorization = true, bool $rotate = true) : array {
         $characters = [];
 
         if(
@@ -378,9 +377,22 @@ class Controller {
                             }else{
                                 $invalidCookie = true;
                             }
-                        }else{
-                            // clear existing authentication data from DB
+                            if ($rotate && isset($characters[$name])) {
+                                $newValidator = bin2hex(random_bytes(16));
+                                $characterAuth->token = hash('sha256', $newValidator);
+                                $characterAuth->save();
+
+                                $remainingTtl = max(0, strtotime((string) $characterAuth->expires) - $currentTime->getTimestamp());
+                                $cookieName = 'COOKIE.' . $name;
+                                $this->getF3()->set($cookieName, $data[0] . ':' . $newValidator, $remainingTtl);
+                            }
+                        }elseif(strtotime((string) $characterAuth->expires) < $currentTime->getTimestamp()){
+                            // expired — drop the row
                             $characterAuth->erase();
+                            $invalidCookie = true;
+                        }else{
+                            // token mismatch on a non-expired row: stale or tampered cookie.
+                            // Do NOT erase — preserves the legit user's row against stale-cookie DoS after rotation.
                             $invalidCookie = true;
                         }
                     }else{
@@ -547,7 +559,7 @@ class Controller {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function getEveServerStatus(\Base $f3){
+    public function getEveServerStatus(\Base $f3): void{
         $ttl = 60;
         $cacheKey = 'eve_server_status';
 
@@ -692,7 +704,7 @@ class Controller {
      * print error information in CLI mode
      * @param \stdClass $error
      */
-    protected function echoErrorCLI(\stdClass $error){
+    protected function echoErrorCLI(\stdClass $error): void {
         echo '[' . date('H:i:s') . '] ───────────────────────────' . PHP_EOL;
         foreach(get_object_vars($error) as $key => $value){
             $row = str_pad(' ',2 ) . str_pad($key . ':',10 );
@@ -713,7 +725,7 @@ class Controller {
      * @param \Base $f3
      * @return bool
      */
-    public function showError(\Base $f3){
+    public function showError(\Base $f3): bool{
 
         if(!headers_sent()){
             // collect error info -------------------------------------------------------------------------------------
@@ -735,8 +747,8 @@ class Controller {
             }
 
             // check if error is a PDO Exception ----------------------------------------------------------------------
-            if(str_contains(strtolower( $f3->get('ERROR.text') ), 'duplicate')){
-                preg_match_all('/\'([^\']+)\'/', $f3->get('ERROR.text'), $matches, PREG_SET_ORDER);
+            if(str_contains(strtolower( (string) $f3->get('ERROR.text') ), 'duplicate')){
+                preg_match_all('/\'([^\']+)\'/', (string) $f3->get('ERROR.text'), $matches, PREG_SET_ORDER);
 
                 if(count($matches) === 2){
                     $error->field = $matches[1][1];
@@ -796,7 +808,7 @@ class Controller {
      * @param \Base $f3
      * @return bool
      */
-    public function unload(\Base $f3){
+    public function unload(\Base $f3): bool{
         // store all user activities that are buffered for logging in this request
         // this should work even on non HTTP200 responses
         $this->logActivities();
@@ -807,7 +819,7 @@ class Controller {
     /**
      * store activity log data to DB
      */
-    protected function logActivities(){
+    protected function logActivities(): void {
         LogController::instance()->logActivities();
         Monolog::instance()->log();
     }
@@ -839,7 +851,7 @@ class Controller {
      * @return null|Controller
      * @throws \Exception
      */
-    static function getController(string $className){
+    static function getController(string $className): object{
         $controller = null;
         // add subNamespaces for controller classes
         $subNamespaces = ['Api', 'Ccp'];
@@ -867,7 +879,7 @@ class Controller {
     /**
      * get scope array by a "role"
      * @param string $authType
-     * @return array
+     * @return array<string, mixed>
      */
     static function getScopesByAuthType(string $authType = '') : array {
         $scopes = array_filter((array)self::getEnvironmentData('CCP_ESI_SCOPES'));
@@ -884,7 +896,7 @@ class Controller {
     /**
      * Helper function to return all headers because
      * getallheaders() is not available under nginx
-     * @return array (string $key -> string $value)
+     * @return array<string, mixed> (string $key -> string $value)
      */
     static function getRequestHeaders() : array {
         $headers = [];
@@ -963,7 +975,7 @@ class Controller {
      * 0=registration stop |1=new registration allowed
      * @return int
      */
-    static function getRegistrationStatus(){
+    static function getRegistrationStatus(): int{
         return (int)Config::getPathfinderData('registration.status');
     }
 
@@ -990,7 +1002,7 @@ class Controller {
     /**
      * get environment specific configuration data
      * @param string $key
-     * @return string|array|null
+     * @return string|array<string, mixed>|null
      */
     static function getEnvironmentData($key){
         return Config::getEnvironmentData($key);

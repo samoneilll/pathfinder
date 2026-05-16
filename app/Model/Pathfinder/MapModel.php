@@ -32,7 +32,7 @@ class MapModel extends AbstractMapTrackingModel {
     const ERROR_DISCORD_CHANNEL                     = 'Invalid #Discord channel column [%s]';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -219,7 +219,7 @@ class MapModel extends AbstractMapTrackingModel {
      * set data by associative array
      * @param  $data
      */
-    public function setData( $data){
+    public function setData( array $data): void{
         unset($data['id']);
         unset($data['created']);
         unset($data['updated']);
@@ -474,9 +474,9 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent($self, $pkeys): void{
         $self->clearCacheData();
         $self->logActivity('mapCreate');
     }
@@ -484,9 +484,9 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self, $pkeys): void{
         $self->clearCacheData();
 
         $activity = ($self->isActive()) ? 'mapUpdate' : 'mapDelete';
@@ -496,9 +496,9 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent($self, $pkeys): void{
         $self->clearCacheData();
         $self->deleteLogFile();
     }
@@ -506,7 +506,8 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * see parent
      */
-    public function clearCacheData(){
+    #[\Override]
+    public function clearCacheData(): void{
         parent::clearCacheData();
 
         // clear character data with map access as well!
@@ -590,7 +591,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param  $addFilters
      * @return SystemModel|null
      */
-    public function getSystemByCCPId(int $systemId,  $addFilters = []) : ?SystemModel {
+    public function getSystemByCCPId(int $systemId,  array $addFilters = []) : ?SystemModel {
         /**
          * @var SystemModel $system
          */
@@ -612,7 +613,7 @@ class MapModel extends AbstractMapTrackingModel {
 
     /**
      * get systems in this map
-     * @return CortexCollection|array
+     * @return CortexCollection|array<array-key, mixed>
      */
     protected function getSystems(){
         $filters = [
@@ -688,7 +689,7 @@ class MapModel extends AbstractMapTrackingModel {
      * -> $connectionIds can be used for filter
      * @param null $connectionIds
      * @param string $scope
-     * @return CortexCollection|array
+     * @return CortexCollection|array<array-key, mixed>
      */
     public function getConnections($connectionIds = null, $scope = ''){
         $filters = [
@@ -727,7 +728,7 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * get all structures data for this map
      * @param int $systemId
-     * @return array
+     * @return array<string, mixed>
      */
     public function getStructuresData(int $systemId) : array {
         $structuresData = [];
@@ -801,8 +802,8 @@ class MapModel extends AbstractMapTrackingModel {
     }
 
     /**
-     * @param array $stack
-     * @return array
+     * @param array<string, mixed> $stack
+     * @return array<string, mixed>
      */
     public function compareAccess( $stack) : array {
         $result = [];
@@ -864,7 +865,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param  $clearKeys
      * @return int
      */
-    public function clearAccess( $clearKeys = ['character', 'corporation', 'alliance']) : int {
+    public function clearAccess( array $clearKeys = ['character', 'corporation', 'alliance']) : int {
         $count = 0;
         foreach($clearKeys as $key){
             $field = null;
@@ -890,6 +891,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param CharacterModel $characterModel
      * @return bool
      */
+    #[\Override]
     public function hasAccess(CharacterModel $characterModel) : bool {
         $hasAccess = false;
 
@@ -971,7 +973,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param  $options filter options
      * @return CharacterModel[]
      */
-    private function getAllCharacters( $options = []) : array {
+    private function getAllCharacters( array $options = []) : array {
         $characters = [];
 
         if($this->isPrivate()){
@@ -1000,10 +1002,10 @@ class MapModel extends AbstractMapTrackingModel {
      * get data for ALL characters with map access
      * -> The result of this function is cached!
      * @param  $options
-     * @return array|null|\stdClass
+     * @return array<string, mixed>|null|\stdClass
      * @throws \Exception
      */
-    public function getCharactersData( $options = []){
+    public function getCharactersData( array $options = []){
         // check if there is cached data
         $charactersData = $this->getCacheData(self::DATA_CACHE_KEY_CHARACTER);
 
@@ -1067,6 +1069,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @throws Exception\ConfigException
      * @throws \Exception
      */
+    #[\Override]
     public function newLog(string $action = '') : Logging\LogInterface{
         $logChannelData = $this->getLogChannelData();
         $logObjectData = $this->getLogObjectData();
@@ -1112,7 +1115,7 @@ class MapModel extends AbstractMapTrackingModel {
 
     /**
      * get object relevant data for model log channel
-     * @return array
+     * @return array<string, mixed>
      */
     public function getLogChannelData() : array {
         return [
@@ -1122,7 +1125,7 @@ class MapModel extends AbstractMapTrackingModel {
     }
     /**
      * get object relevant data for model log object
-     * @return array
+     * @return array<string, mixed>
      */
     public function getLogObjectData() : array {
         return [
@@ -1333,8 +1336,9 @@ class MapModel extends AbstractMapTrackingModel {
      * get log file data
      * @param int $offset
      * @param int $limit
-     * @return array
+     * @return array<string, mixed>
      */
+    #[\Override]
     public function getLogData(int $offset = FileHandler::LOG_FILE_OFFSET, int $limit = FileHandler::LOG_FILE_LIMIT) : array {
         $streamConf = $this->getStreamConfig();
 
@@ -1413,7 +1417,7 @@ class MapModel extends AbstractMapTrackingModel {
     /**
      * delete existing log file
      */
-    protected function deleteLogFile(){
+    protected function deleteLogFile(): void {
         $config = $this->getStreamConfig();
         if(is_file($config->stream)){
             // try to set write access
@@ -1490,6 +1494,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param CharacterModel|null $characterModel
      * @return false|ConnectionModel|MapModel
      */
+    #[\Override]
     public function save(?CharacterModel $characterModel = null){
         /**
          * @var MapModel $mapModel
@@ -1505,7 +1510,7 @@ class MapModel extends AbstractMapTrackingModel {
      * @param  $options
      * @return CortexCollection
      */
-    public static function getAll( $mapIds = [],  $options = []){
+    public static function getAll( array $mapIds = [],  array $options = []){
         $query = [
             'id IN :mapIds',
             ':mapIds' => $mapIds

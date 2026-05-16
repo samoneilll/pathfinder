@@ -18,7 +18,7 @@ class CorporationMapModel extends AbstractPathfinderModel {
     protected $table = 'corporation_map';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -54,7 +54,7 @@ class CorporationMapModel extends AbstractPathfinderModel {
     /**
      * see parent
      */
-    public function clearCacheData(){
+    public function clearCacheData(): void {
         // clear map cache
         $this->mapId->clearCacheData();
     }

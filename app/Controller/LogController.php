@@ -27,13 +27,13 @@ class LogController extends \Prefab  {
      * buffered activity log data for this singleton LogController() class
      * -> this buffered data can be stored somewhere (e.g. DB) before HTTP response
      * -> should be cleared afterwards!
-     * @var array
+     * @var array<string, mixed>
      */
     protected $activityLogBuffer                    = [];
 
     /**
      * get columns from ActivityLogModel that can be uses as counter
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
     protected function getActivityLogColumns(): array{
@@ -59,7 +59,7 @@ class LogController extends \Prefab  {
      * @param MapLog $log
      * @throws \Exception
      */
-    public function push(MapLog $log){
+    public function push(MapLog $log): void{
         $action = $log->getAction();
 
         // check $action to be valid (table column exists)
@@ -84,7 +84,7 @@ class LogController extends \Prefab  {
     /**
      * store all buffered activity log data to DB
      */
-    public function logActivities(){
+    public function logActivities(): void{
         if( !empty($this->activityLogBuffer) ){
             $db = \Base::instance()->DB->getDB('PF');
 

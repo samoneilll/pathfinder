@@ -25,7 +25,7 @@ class Setup extends Controller {
 
     /**
      * required environment variables
-     * @var array
+     * @var array<string, mixed>
      */
     protected $environmentVars = [
         'ENVIRONMENT_CONFIG' => [],
@@ -50,7 +50,7 @@ class Setup extends Controller {
 
     /**
      * required database setup
-     * @var array
+     * @var array<string, mixed>
      */
     protected $databases = [
         'PF' => [
@@ -138,9 +138,10 @@ class Setup extends Controller {
      * event handler for all "views"
      * some global template variables are set in here
      * @param \Base $f3
-     * @param array $params
+     * @param array<string, mixed> $params
      * @return bool
      */
+    #[\Override]
     function beforeroute(\Base $f3, $params): bool {
         $f3->set('tplResource', $this->initResource($f3));
 
@@ -162,7 +163,8 @@ class Setup extends Controller {
     /**
      * @param \Base $f3
      */
-    public function afterroute(\Base $f3) {
+    #[\Override]
+    public function afterroute(\Base $f3): void {
         // js view (file)
         $f3->set('tplJsView', 'setup');
         $f3->set('setupToken', getenv('APP_PASSWORD'));
@@ -184,7 +186,7 @@ class Setup extends Controller {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function init(\Base $f3){
+    public function init(\Base $f3): void{
         if(!$f3->get('ENVIRONMENT.SETUP_ENABLED')){
             $f3->error(404);
             return;
@@ -288,7 +290,7 @@ class Setup extends Controller {
 
     /**
      * get top navigation configuration
-     * @return array
+     * @return array<string, array<string, string>>
      */
     protected function getNavigationConfig() : array {
         return [
@@ -333,6 +335,9 @@ class Setup extends Controller {
         return file_exists('/.dockerenv');
     }
 
+    /**
+     * @return array<string, mixed>
+     */
     protected function getEnvironmentInformation(\Base $f3) : array {
         $environmentData = [];
         // exclude some sensitive data (e.g. database, passwords)
@@ -371,7 +376,7 @@ class Setup extends Controller {
     /**
      * get server information
      * @param \Base $f3
-     * @return array
+     * @return array<string, array<string, mixed>>
      */
     protected function getServerInformation(\Base $f3) : array {
         return [
@@ -417,7 +422,7 @@ class Setup extends Controller {
     /**
      * get information for used directories
      * @param \Base $f3
-     * @return array
+     * @return array<string, array<string, mixed>|array<string, bool|string>>
      */
     protected function getDirectoryConfig(\Base $f3) : array {
         return [
@@ -492,7 +497,7 @@ class Setup extends Controller {
      * check all required backend requirements
      * (Fat Free Framework)
      * @param \Base $f3
-     * @return array
+     * @return array<string, mixed>
      */
     protected function checkRequirements(\Base $f3) : array {
 
@@ -668,7 +673,7 @@ class Setup extends Controller {
     /**
      * check PHP config (php.ini)
      * @param \Base $f3
-     * @return array
+     * @return array<array-key, mixed>
      */
     protected function checkPHPConfig(\Base $f3): array {
         $memoryLimitStr     = ini_get('memory_limit');
@@ -741,7 +746,7 @@ class Setup extends Controller {
      * check Redis (cache) config
      * -> only visible if Redis is used as Cache backend
      * @param \Base $f3
-     * @return array
+     * @return array<string, mixed>
      */
     protected function checkRedisInformation(\Base $f3): array {
         $redisConfig = [];
@@ -985,7 +990,7 @@ class Setup extends Controller {
      * check system environment vars
      * -> mostly relevant for development/build/deployment
      * @param \Base $f3
-     * @return array
+     * @return array<string, array<string, bool|string>|array<string, mixed>>
      */
     protected function checkSystemConfig(\Base $f3): array {
         $systemConf = [];
@@ -1046,7 +1051,7 @@ class Setup extends Controller {
     /**
      * get default map config
      * @param \Base $f3
-     * @return array
+     * @return array<string, int[]|string[]|array<string, mixed>[]>
      */
     protected function getMapsDefaultConfig(\Base $f3): array {
         $matrix = \Matrix::instance();
@@ -1116,7 +1121,7 @@ class Setup extends Controller {
      * get database connection information
      * @param \Base $f3
      * @param bool|false $exec
-     * @return array
+     * @return array<string, mixed>
      */
     protected function checkDatabase(\Base $f3, $exec = false){
 
@@ -1481,7 +1486,7 @@ class Setup extends Controller {
      * check MySQL params
      * @param \Base $f3
      * @param Sql $db
-     * @return array
+     * @return array<string, mixed>
      */
     protected function checkDBConfig(\Base $f3, Sql $db) : array {
         $checkAll = true;
@@ -1563,7 +1568,7 @@ class Setup extends Controller {
      * @param \Base $f3
      * @param string $dbAlias
      */
-    protected function createDB(\Base $f3, string $dbAlias){
+    protected function createDB(\Base $f3, string $dbAlias): void {
         // check for valid key
         if(!empty($this->databases[$dbAlias])){
             // disable logging (we expect the DB connect to fail -> no db created)
@@ -1592,7 +1597,7 @@ class Setup extends Controller {
      * - set default static values
      * @param \Base $f3
      * @param string $dbAlias
-     * @return array
+     * @return array<string, mixed>
      */
     protected function bootstrapDB(\Base $f3, string $dbAlias) : array {
         $checkTables = [];
@@ -1612,7 +1617,7 @@ class Setup extends Controller {
     /**
      * get Socket information (TCP (internal)), (WebSocket (clients))
      * @param \Base $f3
-     * @return array
+     * @return array<string, array<string, mixed[]|float|string>|array<string, mixed[]|string>>
      * @throws \Exception
      */
     protected function getSocketInformation(\Base $f3) : array {
@@ -1722,7 +1727,7 @@ class Setup extends Controller {
     /**
      * get cronjob config
      * @param \Base $f3
-     * @return array
+     * @return array<string, mixed[]>
      */
     protected function getCronConfig(\Base $f3) : array {
         $cron = Cron::instance();
@@ -1766,7 +1771,7 @@ class Setup extends Controller {
     /**
      * get indexed (cache) data information
      * @param \Base $f3
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
     protected function getIndexData(\Base $f3) : array {
@@ -1946,7 +1951,7 @@ class Setup extends Controller {
      * @param string $modelClass
      * @throws \Exception
      */
-    protected function exportTable($modelClass){
+    protected function exportTable($modelClass): void {
         $this->getDB('PF');
         Pathfinder\AbstractPathfinderModel::getNew($modelClass)->exportData();
     }
@@ -1954,7 +1959,7 @@ class Setup extends Controller {
     /**
      * get cache folder size
      * @param \Base $f3
-     * @return array
+     * @return array<string, string|array<string, array<string, mixed>>>
      */
     protected function checkDirSize(\Base $f3) : array {
         // limit shown cache size. Reduce page load on big cache. In Bytes
@@ -2017,7 +2022,7 @@ class Setup extends Controller {
      * clear directory
      * @param string $path
      */
-    protected function clearFiles(string $path){
+    protected function clearFiles(string $path): void {
         $files = Search::getFilesByMTime($path);
         foreach($files as $file){
             /**
@@ -2037,7 +2042,7 @@ class Setup extends Controller {
      * @param int $port
      * @param int $db
      */
-    protected function flushRedisDb(string $host, int $port, int $db = 0){
+    protected function flushRedisDb(string $host, int $port, int $db = 0): void {
         $client = new \Redis();
         $client->pconnect($host, $port, 0.3);
         if($password = getenv('REDIS_PASSWORD')) $client->auth($password);
@@ -2051,7 +2056,7 @@ class Setup extends Controller {
      * @param \Base $f3
      * @throws \Exception
      */
-    protected function invalidateCookies(\Base $f3){
+    protected function invalidateCookies(\Base $f3): void {
         $this->getDB('PF');
         $authenticationModel = Pathfinder\AbstractPathfinderModel::getNew('CharacterAuthenticationModel');
         $results = $authenticationModel->find();

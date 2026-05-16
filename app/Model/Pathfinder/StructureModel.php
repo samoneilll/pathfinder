@@ -20,7 +20,7 @@ class StructureModel extends AbstractPathfinderModel {
     protected $table = 'structure';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -78,9 +78,9 @@ class StructureModel extends AbstractPathfinderModel {
 
     /**
      * set data by associative array
-     * @param array $data
+     * @param array<string, mixed> $data
      */
-    public function setData( $data){
+    public function setData( $data): void{
         $this->copyfrom($data, ['structureId', 'corporationId', 'systemId', 'statusId', 'name', 'description']);
     }
     /**
@@ -165,6 +165,7 @@ class StructureModel extends AbstractPathfinderModel {
      * check whether this model is valid or not
      * @return bool
      */
+    #[\Override]
     public function isValid() : bool {
         if($valid = parent::isValid()){
             // structure always belongs to a systemId
@@ -184,6 +185,10 @@ class StructureModel extends AbstractPathfinderModel {
      * @param $pkeys
      * @return bool
      */
+    #[\Override]
+    /**
+     * @param array<string, mixed> $pkeys
+     */
     public function beforeInsertEvent($self, $pkeys) : bool {
         return $this->isValid() ? parent::beforeInsertEvent($self, $pkeys) : false;
     }
@@ -193,6 +198,7 @@ class StructureModel extends AbstractPathfinderModel {
      * @param CharacterModel $characterModel
      * @return bool
      */
+    #[\Override]
     public function hasAccess(CharacterModel $characterModel) : bool {
         $access = false;
         if($characterModel->hasCorporation()){
@@ -210,7 +216,7 @@ class StructureModel extends AbstractPathfinderModel {
 
     /**
      * get structure data grouped by corporations
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
     public function getDataByCorporations() : array {
@@ -234,7 +240,7 @@ class StructureModel extends AbstractPathfinderModel {
      * @param string $name
      * @param int $systemId
      */
-    public function getByName(CorporationModel $corporation, string $name, int $systemId){
+    public function getByName(CorporationModel $corporation, string $name, int $systemId): void{
         if($corporation->valid() && $name){
             $this->has('structureCorporations', ['corporationId = :corporationId', ':corporationId' => $corporation->_id]);
             $this->load(['name = :name AND systemId = :systemId AND active = :active',

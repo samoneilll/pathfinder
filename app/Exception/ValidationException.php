@@ -12,7 +12,7 @@ namespace Exodus4D\Pathfinder\Exception;
 class ValidationException extends PathfinderException {
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $codes = [
         2000 => 422
@@ -34,6 +34,7 @@ class ValidationException extends PathfinderException {
      * get error object
      * @return \stdClass
      */
+    #[\Override]
     public function getError() : \stdClass {
         $error = parent::getError();
         $error->field = $this->field;

@@ -18,7 +18,7 @@ class CorporationRightModel extends AbstractPathfinderModel {
     protected $table = 'corporation_right';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -64,9 +64,9 @@ class CorporationRightModel extends AbstractPathfinderModel {
 
     /**
      * set data by associative array
-     * @param array $data
+     * @param array<string, mixed> $data
      */
-    public function setData( $data){
+    public function setData( $data): void {
         unset($data['id']);
         unset($data['created']);
         unset($data['updated']);
@@ -101,6 +101,7 @@ class CorporationRightModel extends AbstractPathfinderModel {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             $status = parent::setMultiColumnIndex(['corporationId', 'rightId'], true);

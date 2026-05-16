@@ -18,7 +18,7 @@ class UserCharacterModel extends AbstractPathfinderModel {
     protected $table = 'user_character';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -57,8 +57,9 @@ class UserCharacterModel extends AbstractPathfinderModel {
      * -> remove user if there are no other characters bound to this user
      * @param UserCharacterModel $self
      * @param $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent($self, $pkeys): void{
         if(
             is_object($self->userId) &&
             is_null($self->userId->userCharacters)
@@ -83,6 +84,7 @@ class UserCharacterModel extends AbstractPathfinderModel {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             $status = parent::setMultiColumnIndex(['userId', 'characterId'], true);

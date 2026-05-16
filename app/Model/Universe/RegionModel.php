@@ -19,7 +19,7 @@ class RegionModel extends AbstractUniverseModel {
     protected $table = 'region';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'name' => [
@@ -53,9 +53,9 @@ class RegionModel extends AbstractUniverseModel {
     /**
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {
         $data = self::getF3()->ccpClient()->send('getUniverseRegion', $id);
         if(!empty($data)){
             $this->copyfrom($data, ['id', 'name', 'description']);
@@ -66,7 +66,7 @@ class RegionModel extends AbstractUniverseModel {
     /**
      * load constellations data for this region
      */
-    public function loadConstellationsData(){
+    public function loadConstellationsData(): void{
         if( !$this->dry() ){
             $data = self::getF3()->ccpClient()->send('getUniverseRegion', $this->_id);
             if(!empty($data)){

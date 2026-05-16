@@ -12,7 +12,7 @@ namespace Exodus4D\Pathfinder\Exception;
 class RegistrationException extends PathfinderException{
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $codes = [
         2000 => 403
@@ -34,6 +34,7 @@ class RegistrationException extends PathfinderException{
      * get error object
      * @return \stdClass
      */
+    #[\Override]
     public function getError() : \stdClass {
         $error = parent::getError();
         $error->field = $this->field;

@@ -13,7 +13,7 @@ class AllianceModel extends AbstractUniverseModel {
     protected $table = 'alliance';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'name' => [
@@ -66,7 +66,7 @@ class AllianceModel extends AbstractUniverseModel {
      * @param $date
      * @return string|null
      */
-    public function set_dateFounded($date){
+    public function set_dateFounded(mixed $date){
         if(is_string($date) && !empty($date)){
             try{
                 $dateTime  = new \DateTime($date);
@@ -82,9 +82,9 @@ class AllianceModel extends AbstractUniverseModel {
      * load alliance by Id either from DB or load data from API
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {
         $data = self::getF3()->ccpClient()->send('getAlliance', $id);
         if(!empty($data) && !isset($data['error'])){
             if($data['factionId']){

@@ -51,7 +51,7 @@ class Resource extends \Prefab {
 
     /**
      * absolute file path -> use setOption() for update
-     * @var array
+     * @var array<string, mixed>
      */
     private $filePath = [
         'style'         => '',
@@ -66,7 +66,7 @@ class Resource extends \Prefab {
     /**
      * default file extensions by $group
      * -> used if no fileExtension found in $file
-     * @var array
+     * @var array<string, mixed>
      */
     private $fileExt = [
         'style'         => 'css',
@@ -87,7 +87,7 @@ class Resource extends \Prefab {
 
     /**
      * resource file cache
-     * @var array
+     * @var array<string, mixed>
      */
     private $resources = [];
 
@@ -97,7 +97,7 @@ class Resource extends \Prefab {
      * @param $value
      * @param bool $extend
      */
-    public function setOption(string $option, mixed $value, bool $extend = false){
+    public function setOption(string $option, mixed $value, bool $extend = false): void{
         $this->$option = ($extend && is_array($value) && is_array($this->$option)) ? array_merge($this->$option, $value) : $value;
     }
 
@@ -116,7 +116,7 @@ class Resource extends \Prefab {
      * @param string $file
      * @param string $rel
      */
-    public function register(string $group, string $file, string $rel = self::ATTR_REL){
+    public function register(string $group, string $file, string $rel = self::ATTR_REL): void{
         $this->resources[$group][$file] = ['options' => ['rel' => $rel]];
     }
 
@@ -192,7 +192,7 @@ class Resource extends \Prefab {
      * build resource data
      * -> add missing attributes to resources
      */
-    protected function build(){
+    protected function build(): void {
         foreach($this->resources as $group => &$resources){
             foreach($resources as $file => &$conf){
                 if(empty($conf['link'])){
@@ -241,7 +241,7 @@ class Resource extends \Prefab {
      * get additional attributes by $group
      * -> e.g. or fonts
      * @param string $group
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getAdditionalAttrs(string $group) : array {
         return self::ATTR_ADD[$group] ?? [];

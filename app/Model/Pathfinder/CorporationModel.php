@@ -97,7 +97,7 @@ class CorporationModel extends AbstractPathfinderModel {
     ];
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -176,7 +176,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
     public function beforeUpdateEvent($self, $pkeys) : bool {
@@ -191,9 +191,9 @@ class CorporationModel extends AbstractPathfinderModel {
      * get all maps for this corporation
      * @param int|null $mapId
      * @param  $options
-     * @return array
+     * @return array<string, mixed>
      */
-    public function getMaps(?int $mapId = null,  $options = []) : array {
+    public function getMaps(?int $mapId = null,  array $options = []) : array {
         $maps = [];
         $this->filterRel();
 
@@ -227,7 +227,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * @param  $options
      * @return CharacterModel[]
      */
-    public function getCharacters( $characterIds = [],  $options = []) : array {
+    public function getCharacters( array $characterIds = [],  array $options = []) : array {
         $characters = [];
         $filter = ['active = ?', 1];
 
@@ -255,7 +255,7 @@ class CorporationModel extends AbstractPathfinderModel {
     /**
      * get all structure data for this corporation
      * @param int $systemId
-     * @return array
+     * @return array<string, mixed>
      */
     public function getStructuresData(int $systemId) : array {
         $structuresData = [];
@@ -286,7 +286,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * get roles for each character in this corp
      * -> CCP API call
      * @param string $accessToken
-     * @return array
+     * @return array<string, mixed>
      */
     public function getCharactersRoles($accessToken){
         $characterRolesData = [];
@@ -310,7 +310,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * @return CorporationRightModel[]
      * @throws \Exception
      */
-    public function getRights( $names = self::RIGHTS,  $options = []) : array {
+    public function getRights( array $names = self::RIGHTS,  array $options = []) : array {
         $corporationRights = [];
         // get available rights
         $right = self::getNew('RightModel');
@@ -376,7 +376,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * add new structure for this corporation
      * @param StructureModel $structure
      */
-    public function saveStructure(StructureModel $structure){
+    public function saveStructure(StructureModel $structure): void {
         if( !$structure->dry() ){
             $corporationStructure = $this->rel('corporationStructures');
 
@@ -401,7 +401,7 @@ class CorporationModel extends AbstractPathfinderModel {
      * @param  $options
      * @return \DB\CortexCollection
      */
-    public static function getAll( $options = []){
+    public static function getAll( array $options = []){
         $query = [
             'active = :active',
             ':active' => 1

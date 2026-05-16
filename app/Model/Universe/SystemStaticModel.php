@@ -18,7 +18,7 @@ class SystemStaticModel extends AbstractUniverseModel {
     protected $table = 'system_static';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'systemId' => [
@@ -64,9 +64,9 @@ class SystemStaticModel extends AbstractUniverseModel {
     /**
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){}
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {}
 
     /**
      * overwrites parent
@@ -76,6 +76,7 @@ class SystemStaticModel extends AbstractUniverseModel {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             $status = parent::setMultiColumnIndex(['systemId', 'typeId'], true);

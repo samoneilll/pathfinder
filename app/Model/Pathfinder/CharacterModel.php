@@ -11,6 +11,7 @@ namespace Exodus4D\Pathfinder\Model\Pathfinder;
 use Exodus4D\Pathfinder\Controller\Ccp\Sso as Sso;
 use Exodus4D\Pathfinder\Controller\Api\User as User;
 use Exodus4D\Pathfinder\Lib\Config;
+use Exodus4D\Pathfinder\Lib\TokenCipher;
 use Exodus4D\Pathfinder\Model\Universe;
 use DB\SQL\Schema;
 
@@ -49,7 +50,7 @@ class CharacterModel extends AbstractPathfinderModel {
 
     /**
      * character authorization status
-     * @var array
+     * @var array<string, bool|string>
      */
     const AUTHORIZATION_STATUS = [
         'OK'            => true,                                        // success
@@ -76,7 +77,7 @@ class CharacterModel extends AbstractPathfinderModel {
     private $allowBanChange = false;
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'lastLogin' => [
@@ -401,12 +402,28 @@ class CharacterModel extends AbstractPathfinderModel {
     }
 
     /**
+     * Encrypt esiAccessToken at rest (F5).
+     * Setter is invoked by Cortex on direct assignment and copyfrom(), so both
+     * write paths (SSO callback + refresh) are covered transparently.
+     */
+    public function set_esiAccessToken(mixed $value): string {
+        return TokenCipher::encrypt((string)$value);
+    }
+
+    /**
+     * Encrypt esiRefreshToken at rest (F5). See set_esiAccessToken.
+     */
+    public function set_esiRefreshToken(mixed $value): string {
+        return TokenCipher::encrypt((string)$value);
+    }
+
+    /**
      * kick character for $minutes
      * -> do NOT use $this->kicked!
      * -> this will not work (prevent abuse)
      * @param bool|int $minutes
      */
-    public function kick($minutes = false){
+    public function kick($minutes = false): void{
         // enables "kicked" change for this model
         $this->allowKickChange = true;
         $this->kicked = $minutes;
@@ -418,7 +435,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * -> this will not work (prevent abuse)
      * @param bool|int $status
      */
-    public function ban($status = false){
+    public function ban($status = false): void{
         // enables "banned" change for this model
         $this->allowBanChange = true;
         $this->banned = $status;
@@ -427,34 +444,35 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent($self, $pkeys): void{
         $self->clearCacheData();
     }
 
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self, $pkeys): void{
         $self->clearCacheData();
     }
 
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent($self, $pkeys): void{
         $self->clearCacheData();
     }
 
     /**
      * see parent
      */
-    public function clearCacheData(){
+    #[\Override]
+    public function clearCacheData(): void{
         parent::clearCacheData();
 
         // clear data with "log" as well!
@@ -464,7 +482,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * resets some columns that could have changed by admins (e.g. kick/ban)
      */
-    private function resetAdminColumns(){
+    private function resetAdminColumns(): void{
         $this->kick();
         $this->ban();
     }
@@ -532,12 +550,16 @@ class CharacterModel extends AbstractPathfinderModel {
         $accessToken = false;
         $refreshToken = true;
 
+        // decrypt at-rest tokens once (F5). Empty/legacy/corrupt all surface as ''.
+        $accessPlain  = TokenCipher::decrypt((string)$this->esiAccessToken);
+        $refreshPlain = TokenCipher::decrypt((string)$this->esiRefreshToken);
+
         try{
             $timezone = self::getF3()->get('getTimeZone')();
             $now = new \DateTime('now', $timezone);
 
             if(
-                !empty($this->esiAccessToken) &&
+                !empty($accessPlain) &&
                 !empty($this->esiAccessTokenExpires)
             ){
                 $expireTime = \DateTime::createFromFormat(
@@ -549,7 +571,7 @@ class CharacterModel extends AbstractPathfinderModel {
                 // check if token is not expired
                 if($expireTime && $expireTime->getTimestamp() > $now->getTimestamp()){
                     // token still valid
-                    $accessToken = $this->esiAccessToken;
+                    $accessToken = $accessPlain;
 
                     // check if token should be renewed (close to expire)
                     $timeBuffer = 2 * 60;
@@ -571,17 +593,20 @@ class CharacterModel extends AbstractPathfinderModel {
         // -> in case request for new token fails (e.g. timeout) and old token is still valid -> keep old token
         if(
             $refreshToken &&
-            !empty($this->esiRefreshToken)
+            !empty($refreshPlain)
         ){
             $ssoController = new Sso();
-            $accessData =  $ssoController->refreshAccessToken($this->esiRefreshToken);
+            $accessData =  $ssoController->refreshAccessToken($refreshPlain);
 
             if(isset($accessData->accessToken, $accessData->esiAccessTokenExpires, $accessData->refreshToken)){
+                // setters encrypt before persistence
                 $this->esiAccessToken = $accessData->accessToken;
                 $this->esiAccessTokenExpires = $accessData->esiAccessTokenExpires;
+                $this->esiRefreshToken = $accessData->refreshToken;
                 $this->save();
 
-                $accessToken = $this->esiAccessToken;
+                // return plaintext directly — $this->esiAccessToken is now ciphertext
+                $accessToken = $accessData->accessToken;
             }
         }
 
@@ -764,7 +789,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * get all character roles grouped by 'role type'
      * -> 'role types' are 'roles', 'rolesAtBase', 'rolesAtHq', 'rolesAtOther'
-     * @return array
+     * @return array<string, mixed>
      */
     protected function requestRoles() : array {
         $rolesData = [];
@@ -794,7 +819,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * update clone data
      */
-    public function updateCloneData(){
+    public function updateCloneData(): void{
         if($accessToken = $this->getAccessToken()){
             $clonesData = self::getF3()->ccpClient()->send('getCharacterClones', $this->_id, $accessToken);
             if(!isset($clonesData['error'])){
@@ -810,14 +835,14 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * @throws \Exception
      */
-    public function updateRoleData(){
+    public function updateRoleData(): void{
         $this->roleId = $this->getRole();
     }
 
     /**
      * get online status data from ESI
      * @param string $accessToken
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getOnlineData(string $accessToken) : array {
         return self::getF3()->ccpClient()->send('getCharacterOnline', $this->_id, $accessToken);
@@ -846,7 +871,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * @return CharacterModel
      * @throws \Exception
      */
-    public function updateLog( $additionalOptions = []) : self {
+    public function updateLog( array $additionalOptions = []) : self {
         $deleteLog = false;
         $invalidResponse = false;
 
@@ -1049,7 +1074,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * get 'character log' history data. Filter all data that does not represent a 'jump' (systemId change)
      * -> e.g. If just 'shipTypeId' has changed, this entry is filtered
      * @param int $systemIdPrev
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getLogHistoryJumps(int $systemIdPrev =  0) : array {
         return $this->filterLogsHistory(function(array $historyEntry) use (&$systemIdPrev) : bool {
@@ -1070,14 +1095,14 @@ class CharacterModel extends AbstractPathfinderModel {
      * filter 'character log' history data by $callback
      * -> reindex array keys! Otherwise json_encode() on result would return object!
      * @param \Closure $callback
-     * @return array
+     * @return array<string, mixed>
      */
     protected function filterLogsHistory(\Closure $callback) : array {
         return array_values(array_filter($this->getLogsHistory() , $callback));
     }
 
     /**
-     * @return array
+     * @return array<string, mixed>
      */
     public function getLogsHistory() : array {
         if(!is_array($logHistoryData = $this->getCacheData(self::DATA_CACHE_KEY_LOG_HISTORY))){
@@ -1143,7 +1168,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * @param  $historyEntry
      * @return bool
      */
-    protected function updateLogHistoryEntry( $historyEntry) : bool {
+    protected function updateLogHistoryEntry( array $historyEntry) : bool {
         $updated = false;
 
         if(
@@ -1171,7 +1196,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * broadcast characterData
      */
-    public function broadcastCharacterUpdate(){
+    public function broadcastCharacterUpdate(): void{
         $characterData = $this->getData(true);
 
         self::getF3()->webSocket()->write('characterUpdate', $characterData);
@@ -1179,7 +1204,7 @@ class CharacterModel extends AbstractPathfinderModel {
 
     /**
      * update character data from CCPs ESI API
-     * @return array (some status messages)
+     * @return array<int, string> (some status messages)
      * @throws \Exception
      */
     public function updateFromESI() : array {
@@ -1228,7 +1253,7 @@ class CharacterModel extends AbstractPathfinderModel {
                 if(($now->getTimestamp() - $lastUpdate->getTimestamp()) < 3600){
                     return true;
                 }
-            }catch(\Exception $e){
+            }catch(\Exception){
                 // fall through and refresh
             }
         }
@@ -1447,7 +1472,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * delete current location
      */
-    protected function deleteLog(){
+    protected function deleteLog(): void {
         if($characterLog = $this->getLog()){
             $characterLog->erase();
         }
@@ -1456,7 +1481,7 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * delete authentications data
      */
-    protected function deleteAuthentications(){
+    protected function deleteAuthentications(): void {
         if(is_object($this->characterAuthentications)){
             foreach($this->characterAuthentications as $characterAuthentication){
                 /**
@@ -1472,7 +1497,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * @param bool $deleteSession
      * @param bool $deleteCookie
      */
-    public function logout(bool $deleteSession = true, bool $deleteLog = true, bool $deleteCookie = false){
+    public function logout(bool $deleteSession = true, bool $deleteLog = true, bool $deleteCookie = false): void{
         // delete current session data --------------------------------------------------------------------------------
         if($deleteSession){
             $sessionCharacterData = (array)$this->getF3()->get(User::SESSION_KEY_CHARACTERS);
@@ -1512,9 +1537,9 @@ class CharacterModel extends AbstractPathfinderModel {
     /**
      * merges two multidimensional characterSession arrays by checking characterID
      * @param  $characterDataBase
-     * @return array
+     * @return array<string, mixed>
      */
-    public static function mergeSessionCharacterData( $characterDataBase = []) : array {
+    public static function mergeSessionCharacterData( array $characterDataBase = []) : array {
         $addData = [];
         // get current session characters to be merged with
         $characterData = (array)self::getF3()->get(User::SESSION_KEY_CHARACTERS);
@@ -1539,7 +1564,7 @@ class CharacterModel extends AbstractPathfinderModel {
      * @param  $characterIds
      * @return \DB\CortexCollection
      */
-    public static function getAll( $characterIds = []){
+    public static function getAll( array $characterIds = []){
         $query = [
             'active = :active AND id IN :characterIds',
             ':active' => 1,

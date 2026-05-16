@@ -52,7 +52,7 @@ class SystemModel extends AbstractMapTrackingModel {
     protected $table                        = 'system';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -175,7 +175,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * set data by associative array
      * @param  $data
      */
-    public function setData( $data){
+    public function setData( array $data): void{
         $this->copyfrom($data, ['statusId', 'locked', 'rallyUpdated', 'position', 'description']);
 
         // update group membership when provided (null detaches, int attaches)
@@ -400,7 +400,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * setter for statusId
      * @param  $status
      */
-    public function set_status( $status){
+    public function set_status( array $status): void{
         if($statusId = (int)$status['id']){
             $this->statusId = $statusId;
         }
@@ -411,7 +411,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @param  $position
      * @return null
      */
-    public function set_position( $position){
+    public function set_position( mixed $position): null{
         $position = (array)$position;
         if(count($position) === 2){
             $this->posX = $position['x'];
@@ -453,7 +453,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @param int $rally
      * @return null|string
      */
-    public function set_rallyUpdated($rally){
+    public function set_rallyUpdated($rally): ?string{
         $rally = (int)$rally;
 
         $rally = match ($rally) {
@@ -466,72 +466,72 @@ class SystemModel extends AbstractMapTrackingModel {
         return $rally;
     }
 
-    public function get_name(){
+    public function get_name(): mixed {
         return $this->getStaticSystemValue('name');
     }
 
-    public function get_constellationId(){
+    public function get_constellationId(): mixed {
         $constellationData = $this->getStaticSystemValue('constellation');
         return $constellationData ? $constellationData->id : null;
     }
 
-    public function get_constellation(){
+    public function get_constellation(): mixed {
         $constellationData = $this->getStaticSystemValue('constellation');
         return $constellationData ? $constellationData->name : null;
     }
 
-    public function get_regionId(){
+    public function get_regionId(): mixed {
         $constellationData = $this->getStaticSystemValue('constellation');
         return ($constellationData && $constellationData->region) ? $constellationData->region->id : null;
     }
 
-    public function get_region(){
+    public function get_region(): mixed {
         $constellationData = $this->getStaticSystemValue('constellation');
         return ($constellationData && $constellationData->region) ? $constellationData->region->name : null;
     }
 
-    public function get_security(){
+    public function get_security(): mixed {
         return $this->getStaticSystemValue('security');
     }
 
-    public function get_trueSec(){
+    public function get_trueSec(): mixed {
         return $this->getStaticSystemValue('trueSec');
     }
 
-    public function get_effect(){
+    public function get_effect(): mixed {
         return $this->getStaticSystemValue('effect');
     }
 
-    public function get_shattered(){
+    public function get_shattered(): mixed {
         return $this->getStaticSystemValue('shattered');
     }
 
-    public function get_statics(){
+    public function get_statics(): mixed {
         return $this->getStaticSystemValue('statics');
     }
 
-    public function get_planets(){
+    public function get_planets(): mixed {
         return $this->getStaticSystemValue('planets');
     }
 
-    public function get_stations(){
+    public function get_stations(): mixed {
         return $this->getStaticSystemValue('stations');
     }
 
-    public function get_sovereignty(){
+    public function get_sovereignty(): mixed {
         return $this->getStaticSystemValue('sovereignty');
     }
 
-    public function get_factionWar(){
+    public function get_factionWar(): mixed {
         return $this->getStaticSystemValue('factionWar');
     }
 
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent($self, $pkeys): void{
         $self->clearCacheData();
         $self->logActivity('systemCreate');
     }
@@ -540,9 +540,10 @@ class SystemModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
+    #[\Override]
     public function beforeUpdateEvent($self, $pkeys) : bool {
         $status = parent::beforeUpdateEvent($self, $pkeys);
 
@@ -570,9 +571,9 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self, $pkeys): void{
         $self->clearCacheData();
         $activity = ($self->isActive()) ? 'systemUpdate' : 'systemDelete';
         $self->logActivity($activity);
@@ -581,9 +582,9 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * Event "Hook" function
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent($self, $pkeys): void{
         $self->clearCacheData();
         $self->logActivity('systemDelete');
     }
@@ -607,6 +608,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @return Logging\LogInterface
      * @throws Exception\ConfigException
      */
+    #[\Override]
     public function newLog(string $action = '') : Logging\LogInterface{
         return $this->getMap()->newLog($action)->setTempData($this->getLogObjectData());
     }
@@ -623,6 +625,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @param CharacterModel $characterModel
      * @return bool
      */
+    #[\Override]
     public function hasAccess(CharacterModel $characterModel) : bool {
         return $this->mapId ? $this->mapId->hasAccess($characterModel) : false;
     }
@@ -723,7 +726,7 @@ class SystemModel extends AbstractMapTrackingModel {
 
     /**
      * get data for all stations in this system
-     * @return array
+     * @return array<string, mixed>
      */
     public function getStationsData() : array {
         return $this->stations ? : [];
@@ -771,7 +774,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @throws Exception\ConfigException
      * @throws \Exception
      */
-    public function sendRallyPoke( $rallyData, CharacterModel $characterModel){
+    public function sendRallyPoke( array $rallyData, CharacterModel $characterModel): void{
         // rally log needs at least one handler to be valid
         $isValidLog = false;
         $log = new Logging\RallyLog('rallySet', $this->getMap()->getLogChannelData());
@@ -813,7 +816,7 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * set system type based on security
      */
-    public function setType(){
+    public function setType(): void{
         $typeId = match ($this->security) {
             'H', 'L', '0.0', 'T' => 2,
             'A' => 3,
@@ -842,7 +845,7 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * get object relevant data for model log
      * @param bool $fullData
-     * @return array
+     * @return array<string, mixed>
      */
     public function getLogObjectData($fullData = false) : array{
         $objectData = [
@@ -867,7 +870,7 @@ class SystemModel extends AbstractMapTrackingModel {
 
     /**
      * @param string $stamp
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     public function getSignatureHistoryEntry(string $stamp) : ?array {
         $signatureHistoryData = array_filter($this->getSignaturesHistory(), fn($historyEntry) => md5((string) $historyEntry['stamp']) == $stamp);
@@ -875,7 +878,7 @@ class SystemModel extends AbstractMapTrackingModel {
     }
 
     /**
-     * @return array
+     * @return array<string, mixed>
      */
     public function getSignaturesHistory() : array {
         if(!is_array($signaturesHistoryData = $this->getCacheData(self::DATA_CACHE_KEY_SIGNATURES_HISTORY))){
@@ -919,7 +922,8 @@ class SystemModel extends AbstractMapTrackingModel {
     /**
      * @see parent
      */
-    public function clearCacheData(){
+    #[\Override]
+    public function clearCacheData(): void{
         parent::clearCacheData();
 
         // clear map cache as well
@@ -942,6 +946,7 @@ class SystemModel extends AbstractMapTrackingModel {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             $status = parent::setMultiColumnIndex(['mapId', 'systemId'], true);

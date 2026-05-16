@@ -19,7 +19,7 @@ class System extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function get(\Base $f3,  $params) : void {
+    public function get(\Base $f3,  array $params) : void {
         $requestData = $this->getRequestData($f3);
         $systemData = null;
 
@@ -93,7 +93,7 @@ class System extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function patch(\Base $f3,  $params) : void {
+    public function patch(\Base $f3,  array $params) : void {
         $requestData = $this->getRequestData($f3);
         $systemData = [];
 
@@ -119,7 +119,7 @@ class System extends AbstractRestController {
      * @param $params
      * @throws \Exception
      */
-    public function delete(\Base $f3,  $params) : void {
+    public function delete(\Base $f3,  array $params) : void {
         $requestData = $this->getRequestData($f3);
         $systemIds = array_map(intval(...), explode(',', (string)$params['id']));
         $deletedSystemIds = [];
@@ -174,7 +174,7 @@ class System extends AbstractRestController {
     /**
      * update system with new data
      * @param Pathfinder\SystemModel $system
-     * @param array $systemData
+     * @param array<string, mixed> $systemData
      * @return Pathfinder\SystemModel
      * @throws \Exception
      */

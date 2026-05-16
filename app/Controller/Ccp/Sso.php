@@ -30,7 +30,8 @@ class Sso extends Api\User{
     /**
      * SSO endpoints are pre-authentication by definition — skip the Api\User auth guard.
      */
-    public function beforeroute(\Base $f3, $params): bool {
+    #[\Override]
+    public function beforeroute(\Base $f3, array $params): bool {
         return Controller\Controller::beforeroute($f3, $params);
     }
 
@@ -40,13 +41,17 @@ class Sso extends Api\User{
     const SESSION_KEY_SSO_STATE                     = 'SESSION.SSO.STATE';
     const SESSION_KEY_SSO_FROM                      = 'SESSION.SSO.FROM';
 
+    // F3 cache key for CCP JWKS — avoids fetching on every login callback
+    const JWKS_CACHE_KEY                            = 'sso_jwks_keyset';
+    const JWKS_CACHE_TTL                            = 3600;
+
     // error messages
     const ERROR_CCP_SSO_URL                         = 'Invalid "ENVIRONMENT.[ENVIRONMENT].CCP_SSO_URL" url. %s';
     const ERROR_CCP_CLIENT_ID                       = 'Missing "ENVIRONMENT.[ENVIRONMENT].CCP_SSO_CLIENT_ID".';
     const ERROR_ACCESS_TOKEN                        = 'Unable to get a valid "access_token. %s';
     const ERROR_VERIFY_CHARACTER                    = 'Unable to verify character data. %s';
     const ERROR_LOGIN_FAILED                        = 'Failed authentication due to technical problems: %s';
-    const ERROR_CHARACTER_VERIFICATION              = 'Character verification failed by SSP SSO';
+    const ERROR_CHARACTER_VERIFICATION              = 'Character verification failed by CCP SSO';
     const ERROR_CHARACTER_DATA                      = 'Failed to load characterData from ESI';
     const ERROR_CHARACTER_FORBIDDEN                 = 'Character "%s" is not authorized to log in. Reason: %s';
     const ERROR_SERVICE_TIMEOUT                     = 'CCP SSO service timeout (%ss). Try again later';
@@ -135,14 +140,35 @@ class Sso extends Api\User{
     /**
      * redirect user to CCPs SSO page
      * @param \Base $f3
-     * @param array $scopes
+     * @param array<string, mixed> $scopes
      * @param string $rootAlias
      */
-    private function rerouteAuthorization(\Base $f3,  $scopes = [], string $rootAlias = 'login'){
+    private function rerouteAuthorization(\Base $f3,  $scopes = [], string $rootAlias = 'login'): void{
         if( !empty( Controller\Controller::getEnvironmentData('CCP_SSO_CLIENT_ID') ) ){
             // used for "state" check between request and callback
-            $state = bin2hex( openssl_random_pseudo_bytes(12) );
-            $f3->set(self::SESSION_KEY_SSO_STATE, $state);
+            $state = bin2hex(random_bytes(32));
+            // PKCE (RFC 7636): gated by env flag for runtime kill-switch
+            $usePkce = (bool)(int)(Controller\Controller::getEnvironmentData('CCP_SSO_USE_PKCE') ?? 1);
+            $pkceVerifier = '';
+            if ($usePkce) {
+                // 32 bytes -> exactly 43 base64url chars (RFC 7636 §4.1 minimum). Do not reduce.
+                $pkceVerifier  = rtrim(strtr(base64_encode(random_bytes(32)), '+/', '-_'), '=');
+                $pkceChallenge = rtrim(strtr(base64_encode(hash('sha256', $pkceVerifier, true)), '+/', '-_'), '=');
+            }
+            $stateMap = (array)($f3->get(self::SESSION_KEY_SSO_STATE) ?: []);
+            // Drop any entries that aren't well-formed (e.g. legacy scalar value from
+            // an in-flight session pre-upgrade). Keeps the uasort below well-defined.
+            $stateMap = array_filter($stateMap, fn($v) => is_array($v) && isset($v['createdAt']));
+            if(count($stateMap) >= 5){
+                uasort($stateMap, fn($a, $b) => $a['createdAt'] <=> $b['createdAt']);
+                $stateMap = array_slice($stateMap, -4, null, true);
+            }
+            $stateMap[$state] = [
+                'from'         => (string)($f3->get(self::SESSION_KEY_SSO_FROM) ?: ''),
+                'createdAt'    => time(),
+                'pkceVerifier' => $pkceVerifier,
+            ];
+            $f3->set(self::SESSION_KEY_SSO_STATE, $stateMap);
 
             $urlParams = [
                 'response_type' => 'code',
@@ -151,6 +177,11 @@ class Sso extends Api\User{
                 'scope' => implode(' ', $scopes),
                 'state' => $state
             ];
+
+            if ($usePkce) {
+                $urlParams['code_challenge']        = $pkceChallenge;
+                $urlParams['code_challenge_method'] = 'S256';
+            }
 
             $ssoAuthUrl = $f3->ssoClient()->getUrl();
             $ssoAuthUrl .= $f3->ssoClient()->getAuthorizationEndpointURI();
@@ -183,20 +214,33 @@ class Sso extends Api\User{
             $rootAlias = $f3->get(self::SESSION_KEY_SSO_FROM);
         }
 
-        if($f3->exists(self::SESSION_KEY_SSO_STATE)){
+        $stateMap = (array)($f3->get(self::SESSION_KEY_SSO_STATE) ?: []);
+        $stateMap = array_filter($stateMap, fn($v) => is_array($v) && isset($v['createdAt']));
+        $incomingState = (string)($getParams['state'] ?? '');
+
+        if(!empty($stateMap)){
             // check response and validate 'state'
             if(
                 isset($getParams['code']) &&
-                isset($getParams['state']) &&
                 !empty($getParams['code']) &&
-                !empty($getParams['state']) &&
-                $f3->get(self::SESSION_KEY_SSO_STATE) === $getParams['state']
+                !empty($incomingState) &&
+                isset($stateMap[$incomingState])
             ){
-                // clear 'state' for new next login request
-                $f3->clear(self::SESSION_KEY_SSO_STATE);
+                // consume the matched state entry (getAndDelete semantics)
+                $entry = $stateMap[$incomingState];
+                if(!empty($entry['from'])){
+                    $rootAlias = $entry['from'];
+                }
+                $pkceVerifier = (string)($entry['pkceVerifier'] ?? '');
+                unset($stateMap[$incomingState]);
+                if(empty($stateMap)){
+                    $f3->clear(self::SESSION_KEY_SSO_STATE);
+                }else{
+                    $f3->set(self::SESSION_KEY_SSO_STATE, $stateMap);
+                }
                 $f3->clear(self::SESSION_KEY_SSO_FROM);
 
-                $accessData = $this->getSsoAccessData($getParams['code']);
+                $accessData = $this->getSsoAccessData($getParams['code'], $pkceVerifier);
 
                 if(isset($accessData->accessToken, $accessData->esiAccessTokenExpires, $accessData->refreshToken)){
                     // login succeeded -> get basic character data for current login
@@ -345,24 +389,11 @@ class Sso extends Api\User{
 
     /**
      * get a valid "access_token" for oAuth 2.0 verification
-     * -> if $authCode is set -> request NEW "access_token"
-     * -> else check for existing (not expired) "access_token"
-     * -> else try to refresh auth and get fresh "access_token"
-     * @param bool $authCode
+     * @param string $authCode
      * @return null|\stdClass
      */
-    protected function getSsoAccessData(string $authCode) : ?\stdClass {
-        $accessData = null;
-
-        if( !empty($authCode) ){
-            // Authentication Code is set -> request new "accessToken"
-            $accessData = $this->verifyAuthorizationCode($authCode);
-        }else{
-            // Unable to get Token -> trigger error
-            self::getSSOLogger()->write(sprintf(self::ERROR_ACCESS_TOKEN, $authCode));
-        }
-
-        return $accessData;
+    protected function getSsoAccessData(string $authCode, string $pkceVerifier = '') : ?\stdClass {
+        return $this->verifyAuthorizationCode($authCode, $pkceVerifier);
     }
 
     /**
@@ -370,11 +401,14 @@ class Sso extends Api\User{
      * @param string $authCode
      * @return \stdClass
      */
-    protected function verifyAuthorizationCode(string $authCode) : \stdClass {
+    protected function verifyAuthorizationCode(string $authCode, string $pkceVerifier = '') : \stdClass {
         $requestParams = [
             'grant_type' => 'authorization_code',
-            'code' => $authCode
+            'code'       => $authCode,
         ];
+        if (!empty($pkceVerifier)) {
+            $requestParams['code_verifier'] = $pkceVerifier;
+        }
 
         return $this->requestAccessData($requestParams);
     }
@@ -398,7 +432,7 @@ class Sso extends Api\User{
      * request an "access_token" AND "refresh_token" data
      * -> this can either be done by sending a valid "authorization code"
      * OR by providing a valid "refresh_token"
-     * @param array $requestParams
+     * @param array<string, mixed> $requestParams
      * @return \stdClass
      */
     protected function requestAccessData( $requestParams) : \stdClass {
@@ -432,64 +466,123 @@ class Sso extends Api\User{
                 $accessData->refreshToken =  $authCodeRequestData['refreshToken'];
             }
         }else{
-            self::getSSOLogger()->write(sprintf(self::ERROR_ACCESS_TOKEN, print_r($requestParams, true)));
+            $grantType = $requestParams['grant_type'] ?? 'unknown';
+            self::getSSOLogger()->write(sprintf(self::ERROR_ACCESS_TOKEN . ' grant_type=[%s]',
+                print_r(self::redactSecrets($requestParams), true),
+                $grantType
+            ));
         }
 
         return $accessData;
     }
 
     /**
-     * verify character data by decloding JWT "access_token"
-     * -> verify against CCP JWK
-     * -> get some basic information (like character id)     
-     * @param string $accessToken
-     * @return object
+     * redact sensitive keys from a parameter array before logging
+     * @param array<string, mixed> $params
+     * @return array<string, mixed>
      */
-    public function verifyCharacterData(string $accessToken) : object {
-        $characterData = $this->verifyJwtAccessToken($accessToken);
-
-        if( !empty($characterData) ){
-            $characterData->characterId = (int)explode(':',$characterData->sub)[2];
-        }else{
-            self::getSSOLogger()->write(sprintf(self::ERROR_VERIFY_CHARACTER, __METHOD__));
+    private static function redactSecrets(array $params) : array {
+        foreach (['refresh_token', 'code', 'client_secret'] as $key) {
+            if (isset($params[$key])) {
+                $params[$key] = '[REDACTED]';
+            }
         }
-
-        return $characterData;
+        return $params;
     }
 
-    /** 
+    /**
+     * verify character data by decoding JWT "access_token"
+     * -> verify against CCP JWK
+     * -> get some basic information (like character id)
+     * @param string $accessToken
+     * @return object|null null on any verification failure
+     */
+    public function verifyCharacterData(string $accessToken) : ?object {
+        try {
+            $characterData = $this->verifyJwtAccessToken($accessToken);
+            $characterData->characterId = (int)explode(':', $characterData->sub)[2];
+            return $characterData;
+        } catch (\Exception $e) {
+            self::getSSOLogger()->write(sprintf(self::ERROR_VERIFY_CHARACTER, $e->getMessage()));
+            return null;
+        }
+    }
+
+    /**
      * verify JWT by comparing to CCP public JWK
      * -> get Ccp JWKs
      * -> decode accessToken using JWKs
      * -> Verify token claim is correct
      * @param string $accessToken
      * @return object
+     * @throws \UnexpectedValueException on issuer or audience mismatch
     */
     public function verifyJwtAccessToken(string $accessToken) : object {
-        $ccpJwks = $this->getCcpJwkData();
-        // set $leeway in seconds to 10, since sometimes there can be verification errors due server clock skew resulting
-        // in tokens that look like they were issued 1 second in the future.
         JWT::$leeway = 10;
-        // get decoded JWT using ccp supplied JWK
-        // firebase/php-jwt v6.4+: algs are embedded in Key objects returned by parseKeySet; no separate alg array needed
-        $decodedJwt = JWT::decode($accessToken, JWK::parseKeySet($ccpJwks));
-        // check if issuer matches correct ccp supplied claim values
-        if (strpos((string) $decodedJwt->iss, static::getSsoJwkClaim()) !== true) {            
-            self::getSSOLogger()->write(sprintf(self::ERROR_TOKEN_VERIFICATION, __METHOD__));
+        $ccpJwks = $this->getCcpJwkData();
+
+        // parse JWKS; on structural failure assume cached blob is corrupt and refetch once
+        try {
+            $keySet = JWK::parseKeySet($ccpJwks);
+        } catch (\UnexpectedValueException | \InvalidArgumentException $e) {
+            $this->getF3()->clear(self::JWKS_CACHE_KEY);
+            $ccpJwks = $this->getCcpJwkData();
+            $keySet = JWK::parseKeySet($ccpJwks);
         }
+
+        try {
+            // firebase/php-jwt v6.4+: algs are embedded in Key objects returned by parseKeySet; no separate alg array needed
+            $decodedJwt = JWT::decode($accessToken, $keySet);
+        } catch (\UnexpectedValueException $e) {
+            // "kid" invalid = CCP rotated keys while our JWKS was cached — bust cache and retry once
+            if (str_contains($e->getMessage(), '"kid" invalid')) {
+                $this->getF3()->clear(self::JWKS_CACHE_KEY);
+                $ccpJwks = $this->getCcpJwkData();
+                $decodedJwt = JWT::decode($accessToken, JWK::parseKeySet($ccpJwks));
+            } else {
+                throw $e;
+            }
+        }
+
+        // F1: issuer must match configured claim (previous strpos !== true was always true — never actually blocked)
+        if (!hash_equals(static::getSsoJwkClaim(), (string)$decodedJwt->iss)) {
+            throw new \UnexpectedValueException('JWT issuer mismatch');
+        }
+
+        // F2: audience must include our client ID (firebase/php-jwt does not verify aud automatically)
+        $expectedClientId = (string)Controller\Controller::getEnvironmentData('CCP_SSO_CLIENT_ID');
+        $aud = $decodedJwt->aud ?? null;
+        $audList = is_array($aud) ? $aud : (is_string($aud) ? [$aud] : []);
+        if (!in_array($expectedClientId, $audList, true)) {
+            throw new \UnexpectedValueException('JWT audience mismatch');
+        }
+
+        // azp (authorized party) must match client ID if present
+        if (isset($decodedJwt->azp) && (string)$decodedJwt->azp !== $expectedClientId) {
+            throw new \UnexpectedValueException('JWT authorized party mismatch');
+        }
+
         return $decodedJwt;
     }
 
     /**
      * get JWK from CCP and return decoded json object
-     * @return array     
+     * Results are cached in F3 for JWKS_CACHE_TTL seconds to avoid a round-trip on every login.
+     * @return array<string, mixed>
     */
     protected function getCcpJwkData() : array {
-        $jwkJson = $this->getF3()->ssoClient()->send('getJWKS');
+        $f3 = $this->getF3();
+
+        if ($cached = $f3->get(self::JWKS_CACHE_KEY)) {
+            return $cached;
+        }
+
+        $jwkJson = $f3->ssoClient()->send('getJWKS');
 
         if( !empty($jwkJson) ){
             // ensure items in 'keys' are arrays and not objects
             array_walk($jwkJson['keys'], function(&$item): void{$item = (array) $item;});
+            $f3->set(self::JWKS_CACHE_KEY, $jwkJson, self::JWKS_CACHE_TTL);
             return $jwkJson;
         }
 
@@ -546,7 +639,7 @@ class Sso extends Api\User{
     /**
      * get data for HTTP "Authorization:" Header
      * -> This header is required for any Auth-required endpoints!
-     * @return array
+     * @return array<int, string|mixed[]|null>
      */
     protected function getAuthorizationData() : array {
         return [

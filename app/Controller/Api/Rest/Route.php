@@ -6,6 +6,7 @@ namespace Exodus4D\Pathfinder\Controller\Api\Rest;
 
 use Exodus4D\Pathfinder\Lib\Config;
 use Exodus4D\Pathfinder\Controller\Ccp\Universe;
+use Exodus4D\Pathfinder\Enum\ConnectionType;
 use Exodus4D\Pathfinder\Model\Pathfinder;
 
 class Route extends AbstractRestController {
@@ -62,25 +63,25 @@ class Route extends AbstractRestController {
 
     /**
      * array system information grouped by systemId
-     * @var array
+     * @var array<string, mixed>
      */
     private $nameArray = [];
 
     /**
      * array neighbour systems grouped by systemName
-     * @var array
+     * @var array<string, mixed>
      */
     private $jumpArray = [];
 
     /**
      * array with systemName => systemId matching
-     * @var array
+     * @var array<string, mixed>
      */
     private $idArray = [];
 
     /**
      * template for routeData payload
-     * @var array
+     * @var array<string, mixed>
      */
     private $defaultRouteData = [
         'routePossible' => false,
@@ -95,7 +96,7 @@ class Route extends AbstractRestController {
     /**
      * reset all jump data
      */
-    protected function resetJumpData(){
+    protected function resetJumpData(): void {
         $this->nameArray = [];
         $this->jumpArray = [];
         $this->idArray = [];
@@ -107,7 +108,7 @@ class Route extends AbstractRestController {
      * -> jump data includes JUST "static" connections (Stargates)
      * -> this data is equal for EACH route search (does not depend on map data)
      */
-    private function setStaticJumpData(){
+    private function setStaticJumpData(): void{
         if($universeDB = $this->getDB('UNIVERSE')){
             $query = "SELECT * FROM system_neighbour";
             $rows = $universeDB->exec($query, null, $this->staticJumpDataCacheTime);
@@ -123,12 +124,12 @@ class Route extends AbstractRestController {
 
     /**
      * filter an array of connection-type values against the model whitelist
-     * @param array $values
+     * @param array<string, mixed> $values
      * @return string[] safe values, in original order, deduplicated, ready to inline into SQL
      */
     private function filterConnectionTypes(array $values) : array {
         return array_values(array_intersect(
-            array_unique(array_map('strval', $values)),
+            array_unique(array_map(strval(...), $values)),
             Pathfinder\ConnectionModel::getConnectionTypeWhitelist()
         ));
     }
@@ -141,7 +142,7 @@ class Route extends AbstractRestController {
      * @param  $filterData
      * @throws \Exception
      */
-    private function setDynamicJumpData( $mapIds = [],  $filterData = []){
+    private function setDynamicJumpData( array $mapIds = [],  array $filterData = []): void{
         // make sure, mapIds are integers (protect against SQL injections)
         $mapIds = array_unique( array_map(intval(...), $mapIds), SORT_NUMERIC);
 
@@ -159,32 +160,36 @@ class Route extends AbstractRestController {
 
             if( ($filterData['stargates'] ?? false) === true){
                 // include "stargates" for search
-                $includeScopes[] = 'stargate';
-                $includeTypes[] = 'stargate';
+                $includeScopes[] = ConnectionType::Stargate->value;
+                $includeTypes[] = ConnectionType::Stargate->value;
 
             }
 
             if( ($filterData['jumpbridges'] ?? false) === true ){
                 // add jumpbridge connections for search
-                $includeScopes[] = 'jumpbridge';
-                $includeTypes[] = 'jumpbridge';
+                $includeScopes[] = ConnectionType::Jumpbridge->value;
+                $includeTypes[] = ConnectionType::Jumpbridge->value;
             }
 
             if( ($filterData['wormholes'] ?? false) === true ){
                 // add wormhole connections for search
-                $includeScopes[] = 'wh';
-                $includeTypes[] = 'wh_fresh';
+                $includeScopes[] = ConnectionType::Wh->value;
+                $includeTypes[] = ConnectionType::WhFresh->value;
 
 
                 if( ($filterData['wormholesReduced'] ?? false) === true ){
-                    $includeTypes[] = 'wh_reduced';
+                    $includeTypes[] = ConnectionType::WhReduced->value;
                 }
 
                 if( ($filterData['wormholesCritical'] ?? false) === true ){
-                    $includeTypes[] = 'wh_critical';
+                    $includeTypes[] = ConnectionType::WhCritical->value;
                 }
 
-                foreach(['wormholesEOL1' => 'wh_eol1', 'wormholesEOL2' => 'wh_eol2', 'wormholesEOL3' => 'wh_eol3'] as $key => $type){
+                foreach([
+                    'wormholesEOL1' => ConnectionType::WhEol1->value,
+                    'wormholesEOL2' => ConnectionType::WhEol2->value,
+                    'wormholesEOL3' => ConnectionType::WhEol3->value,
+                ] as $key => $type){
                     if(($filterData[$key] ?? true) === false){
                         $excludeTypes[] = $type;
                     }
@@ -192,7 +197,7 @@ class Route extends AbstractRestController {
 
                 if(!empty($filterData['excludeTypes'])){
                     $excludeTypes = array_values(array_intersect(
-                        array_map('strval', (array)$filterData['excludeTypes']),
+                        array_map(strval(...), (array)$filterData['excludeTypes']),
                         Pathfinder\ConnectionModel::getConnectionTypeWhitelist()
                     ));
                 }
@@ -301,7 +306,7 @@ class Route extends AbstractRestController {
      * build jump data from EVE Scout connections, filtered to a specific hub system
      * @param int $hubSystemId only include connections where source OR target matches this system ID
      * @param string $cacheKey
-     * @return array
+     * @return array<string, mixed>
      */
     private function buildEveScoutJumpData(int $hubSystemId, string $cacheKey) : array {
         if(!$this->getF3()->exists($cacheKey, $jumpData)){
@@ -372,7 +377,7 @@ class Route extends AbstractRestController {
      * -> data is either coming from CCPs [SDE] OR from map specific data
      * @param  $rows
      */
-    private function updateJumpData( &$rows = []){
+    private function updateJumpData( array &$rows = []): void{
         foreach($rows as &$row){
             $regionId       = (int)($row['regionId'] ?? 0);
             $constId        = (int)($row['constellationId'] ?? 0);
@@ -411,7 +416,7 @@ class Route extends AbstractRestController {
      * @param  $filterData
      * @param  $keepSystems
      */
-    private function filterJumpData( $filterData = [],  $keepSystems = []){
+    private function filterJumpData( array $filterData = [],  array $keepSystems = []): void{
         if(($filterData['flag'] ?? '') == 'secure'){
             // remove all systems (TrueSec < 0.5) from search arrays
             $this->jumpArray = array_filter($this->jumpArray, function($systemId) use ($keepSystems) {
@@ -460,9 +465,10 @@ class Route extends AbstractRestController {
      * @param string $A
      * @param string $B
      * @param int $M
-     * @return array
+     * @return array<string, mixed>
+     * @param array<string, mixed> $G
      */
-    private function graph_find_path(array &$G, string $A, string $B, int $M = 50000){
+    private function graph_find_path(array &$G, string $A, string $B, int $M = 50000): array{
         $maxDepth = $M;
 
         // $P will hold the result path at the end.
@@ -528,7 +534,7 @@ class Route extends AbstractRestController {
     /**
      * get formatted jump node data
      * @param int $systemId
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getJumpNodeData(int $systemId) : array {
         return [
@@ -545,10 +551,10 @@ class Route extends AbstractRestController {
      * @param int $searchDepth
      * @param  $mapIds
      * @param  $filterData
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
-    public function searchRoute(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
+    public function searchRoute(int $systemFromId, int $systemToId, int $searchDepth = 0,  array $mapIds = [],  array $filterData = []) : array {
         // search root by ESI API
         $routeData = $this->searchRouteESI($systemFromId, $systemToId, $searchDepth, $mapIds, $filterData);
 
@@ -569,10 +575,10 @@ class Route extends AbstractRestController {
      * @param int $searchDepth
      * @param  $mapIds
      * @param  $filterData
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
-    private function searchRouteCustom(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
+    private function searchRouteCustom(int $systemFromId, int $systemToId, int $searchDepth = 0,  array $mapIds = [],  array $filterData = []) : array {
         // reset all previous set jump data
         $this->resetJumpData();
 
@@ -658,10 +664,10 @@ class Route extends AbstractRestController {
      * @param int $searchDepth
      * @param  $mapIds
      * @param  $filterData
-     * @return array
+     * @return array<string, mixed>
      * @throws \Exception
      */
-    private function searchRouteESI(int $systemFromId, int $systemToId, int $searchDepth = 0,  $mapIds = [],  $filterData = []) : array {
+    private function searchRouteESI(int $systemFromId, int $systemToId, int $searchDepth = 0,  array $mapIds = [],  array $filterData = []) : array {
         // reset all previous set jump data
         $this->resetJumpData();
 
@@ -785,10 +791,10 @@ class Route extends AbstractRestController {
      * @param $mapIds
      * @param $systemFrom
      * @param $systemTo
-     * @param array $filterData
+     * @param array<string, mixed> $filterData
      * @return string
      */
-    private function getRouteCacheKey( $mapIds, int $systemFrom, int $systemTo,  $filterData = []){
+    private function getRouteCacheKey( array $mapIds, int $systemFrom, int $systemTo,  $filterData = []){
 
         $keyParts = [
             implode('_', $mapIds),
@@ -806,7 +812,7 @@ class Route extends AbstractRestController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function post(\Base $f3){
+    public function post(\Base $f3): void{
         $requestData = $this->getRequestData($f3);
 
         $activeCharacter = $this->getCharacter();

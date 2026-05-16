@@ -16,7 +16,8 @@ use Exodus4D\Pathfinder\Model;
 
 class Setup extends Controller\Controller {
 
-    public function beforeroute(\Base $f3, $params): bool {
+    #[\Override]
+    public function beforeroute(\Base $f3, array $params): bool {
         $expected = getenv('APP_PASSWORD');
         $provided = (string)($f3->get('POST.token') ?? $_SERVER['HTTP_X_SETUP_TOKEN'] ?? '');
         if(!$expected || !hash_equals($expected, $provided)){
@@ -31,7 +32,7 @@ class Setup extends Controller\Controller {
      * get HTML table <tr>´s for all cronjobs
      * @param \Base $f3
      */
-    public function cronTable(\Base $f3){
+    public function cronTable(\Base $f3): void{
         $return = (object) [];
         $return->error = [];
         $return->jobsData = Cron::instance()->getJobsConfig();
@@ -43,7 +44,7 @@ class Setup extends Controller\Controller {
      * toggle "isPaused" for a cronjob by its name
      * @param \Base $f3
      */
-    public function cronPause(\Base $f3){
+    public function cronPause(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $return = (object) [];
         $return->error = [];
@@ -70,7 +71,7 @@ class Setup extends Controller\Controller {
      * -> max execution time might be lower than CLI calls!
      * @param \Base $f3
      */
-    public function cronExecute(\Base $f3){
+    public function cronExecute(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $return = (object) [];
         $return->error = [];
@@ -92,7 +93,7 @@ class Setup extends Controller\Controller {
 
     /**
      * get HTML for cronJobs
-     * @param array $jobsData
+     * @param array<string, mixed> $jobsData
      * @return string
      */
     protected function getCronHtml( $jobsData) : string {
@@ -114,7 +115,7 @@ class Setup extends Controller\Controller {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function buildIndex(\Base $f3){
+    public function buildIndex(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $type = (string)($postData['type'] ?? '');
         $countAll = (int)($postData['countAll'] ?? 0);
@@ -233,7 +234,7 @@ class Setup extends Controller\Controller {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function clearIndex(\Base $f3){
+    public function clearIndex(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $type = (string)($postData['type'] ?? '');
 
@@ -267,7 +268,7 @@ class Setup extends Controller\Controller {
      * import static 'system_static` table data from *.csv
      * @param int $offset
      * @param int $length
-     * @return array
+     * @return array<string, int>
      * @throws \Exception
      */
     protected function setupSystemStaticTable(int $offset = 0, int $length = 0) : array {
@@ -325,7 +326,7 @@ class Setup extends Controller\Controller {
      * for system jump calculation. Call this function manually when CCP adds Systems/Stargates
      * @param int $offset
      * @param int $length
-     * @return array
+     * @return array<string, mixed>
      */
     protected function setupSystemJumpTable(int $offset = 0, int $length = 0) : array {
         $info = ['countAll' => 0, 'countChunk' => 0, 'count' => 0, 'offset' => $offset];

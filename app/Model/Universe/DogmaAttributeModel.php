@@ -18,7 +18,7 @@ class DogmaAttributeModel extends AbstractUniverseModel {
     protected $table = 'dogma_attribute';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'name' => [
@@ -85,9 +85,9 @@ class DogmaAttributeModel extends AbstractUniverseModel {
     /**
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {
         $data = self::getF3()->ccpClient()->send('getDogmaAttribute', $id);
         if(!empty($data) && !isset($data['error'])){
             $this->copyfrom($data, ['id', 'name', 'displayName', 'description', 'published', 'stackable', 'highIsGood', 'defaultValue', 'iconId', 'unitId']);

@@ -9,6 +9,7 @@
 namespace Exodus4D\Pathfinder\Cron;
 
 
+use Exodus4D\Pathfinder\Enum\ConnectionType;
 use Exodus4D\Pathfinder\Lib\Config;
 use Exodus4D\Pathfinder\Model\Pathfinder;
 
@@ -29,7 +30,7 @@ class MapUpdate extends AbstractCron {
      * >> php index.php "/cron/deactivateMapData"
      * @param \Base $f3
      */
-    function deactivateMapData(\Base $f3){
+    function deactivateMapData(\Base $f3): void{
         $this->logStart(__FUNCTION__, false);
         $privateMapLifetime = (int)Config::getMapsDefaultConfig('private.lifetime');
 
@@ -55,7 +56,7 @@ class MapUpdate extends AbstractCron {
      * @param \Base $f3
      * @throws \Exception
      */
-    function deleteMapData(\Base $f3){
+    function deleteMapData(\Base $f3): void{
         $this->logStart(__FUNCTION__);
         $total = 0;
 
@@ -95,7 +96,7 @@ class MapUpdate extends AbstractCron {
      * @param \Base $f3
      * @throws \Exception
      */
-    function deleteEolConnections(\Base $f3){
+    function deleteEolConnections(\Base $f3): void{
         $this->logStart(__FUNCTION__, false);
         $nominalDefault = (int)($f3->get('PATHFINDER.CACHE.EXPIRE_CONNECTIONS_NOMINAL_DEFAULT') ?: 86400);
         $pfDB = $f3->DB->getDB('PF');
@@ -138,7 +139,7 @@ class MapUpdate extends AbstractCron {
 
     /**
      * @param Pathfinder\ConnectionModel $connection reusable model instance
-     * @param array $connectionsData rows from deleteEolConnections query
+     * @param array<string, mixed> $connectionsData rows from deleteEolConnections query
      * @return int number of connections erased
      */
     private function eraseExpiredEolConnections($connection, array $connectionsData) : int {
@@ -158,17 +159,15 @@ class MapUpdate extends AbstractCron {
     }
 
     /**
-     * @param array $data row with keys: type (JSON), nominalLifespan (seconds)
+     * @param array<string, mixed> $data row with keys: type (JSON), nominalLifespan (seconds)
      * @return int|null expiry window in seconds for the connection's EOL phase, null if no EOL type
      */
     private function getEolExpireSeconds(array $data) : ?int {
         $types = (array)json_decode($data['type'] ?? 'null');
         $buffer = (int)((int)$data['nominalLifespan'] * 0.2);
-        // keyed by type string, value is the base seconds added to buffer
-        $phaseBase = ['wh_eol1' => 4 * 3600, 'wh_eol' => 4 * 3600, 'wh_eol2' => 1 * 3600, 'wh_eol3' => 0];
-        foreach($phaseBase as $type => $base){
-            if(in_array($type, $types)){
-                return $base + $buffer;
+        foreach(ConnectionType::eolCases() as $eolCase){
+            if(in_array($eolCase->value, $types)){
+                return $eolCase->eolBaseSeconds() + $buffer;
             }
         }
         return null;
@@ -180,7 +179,7 @@ class MapUpdate extends AbstractCron {
      * @param \Base $f3
      * @throws \Exception
      */
-    function deleteExpiredConnections(\Base $f3){
+    function deleteExpiredConnections(\Base $f3): void{
         $this->logStart(__FUNCTION__, false);
         $nominalDefault = (int)($f3->get('PATHFINDER.CACHE.EXPIRE_CONNECTIONS_NOMINAL_DEFAULT') ?: 86400);
         $pfDB = $f3->DB->getDB('PF');
@@ -208,7 +207,7 @@ class MapUpdate extends AbstractCron {
 
         $connectionsData = $pfDB->exec($sql, [
             'deleteExpiredConnections' => 1,
-            'scope' => 'wh',
+            'scope' => ConnectionType::Wh->value,
             'nominalDefault' => $nominalDefault
         ]);
 
@@ -235,7 +234,7 @@ class MapUpdate extends AbstractCron {
      * >> php index.php "/cron/deleteSignatures"
      * @param \Base $f3
      */
-    function deleteSignatures(\Base $f3){
+    function deleteSignatures(\Base $f3): void{
         $this->logStart(__FUNCTION__, false);
         $signatureExpire = (int)$f3->get('PATHFINDER.CACHE.EXPIRE_SIGNATURES');
 

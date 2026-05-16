@@ -136,7 +136,7 @@ class Config extends \Prefab {
 
     /**
      * all environment data
-     * @var array
+     * @var array<string, mixed>
      */
     private $serverConfigData                       = [];
 
@@ -187,7 +187,7 @@ class Config extends \Prefab {
     /**
      * get environment configuration data
      * @param \Base $f3
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     protected function getAllEnvironmentData(\Base $f3){
         if(!$f3->exists(self::HIVE_KEY_ENVIRONMENT, $environmentData)){
@@ -204,7 +204,7 @@ class Config extends \Prefab {
      * that depend on environment settings
      * @param \Base $f3
      */
-    protected function setHiveVariables(\Base $f3){
+    protected function setHiveVariables(\Base $f3): void {
         // hive keys that can be overwritten
         $hiveKeys = ['BASE', 'URL', 'DEBUG', 'CACHE'];
 
@@ -218,9 +218,9 @@ class Config extends \Prefab {
     /**
      * set all environment configuration data
      * @param \Base $f3
-     * @return array|mixed|null
+     * @return array<string, mixed>|null
      */
-    protected function setAllEnvironmentData(\Base $f3){
+    protected function setAllEnvironmentData(\Base $f3): ?array{
         $environmentData = null;
 
         if( !empty($this->serverConfigData['ENV']) ){
@@ -271,7 +271,7 @@ class Config extends \Prefab {
      * -> FastCGI syntax
      *      fastcgi_param PF-ENV-DEBUG 3;
      */
-    protected function setServerData(){
+    protected function setServerData(): void {
         $data = [];
         foreach($_SERVER as $key => $value){
             if(str_starts_with((string) $key, self::PREFIX_KEY . self::ARRAY_DELIMITER)){
@@ -309,7 +309,7 @@ class Config extends \Prefab {
      * get database config values
      * @param \Base $f3
      * @param string $alias
-     * @return array
+     * @return array<string, mixed>
      */
     static function getDatabaseConfig(\Base $f3, string $alias) : array {
         $alias = strtoupper($alias);
@@ -363,7 +363,7 @@ class Config extends \Prefab {
      * get required MySQL variables from requirements.ini
      * @param \Base $f3
      * @param string $schema
-     * @return array
+     * @return array<string, mixed>
      */
     static function getRequiredDbVars(\Base $f3, string $schema) : array {
         return $f3->exists('REQUIREMENTS[' . strtoupper($schema) . '][VARS]', $vars) ? $vars : [];
@@ -387,7 +387,7 @@ class Config extends \Prefab {
      * get Plugin config from `plugin.ini`
      * @param string|null $key
      * @param bool $checkEnabled
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     static function getPluginConfig(?string $key, bool $checkEnabled = true) : ?array {
         $isEnabled = $checkEnabled ?
@@ -514,7 +514,7 @@ class Config extends \Prefab {
      * -> some $conf values might be NULL if not found in $dsn!
      * -> some missing values become defaults
      * @param string $dsn
-     * @param array|null $conf
+     * @param array<string, mixed>|null $conf
      * @return bool
      */
     static function parseDSN(string $dsn, ?array &$conf = []) : bool {
@@ -556,7 +556,7 @@ class Config extends \Prefab {
             $timezone = \Base::instance()->get('getTimeZone')();
 
             // if not set -> use current time
-            $dateCheck = is_null($dateCheck) ? new \DateTime('now', $timezone) : $dateCheck;
+            $dateCheck ??= new \DateTime('now', $timezone);
             $dateDowntimeStart = new \DateTime('now', $timezone);
             $dateDowntimeStart->setTime($downTimeParts[0],$downTimeParts[1]);
             $dateDowntimeStart->sub(new \DateInterval('PT' . self::DOWNTIME_BUFFER . 'M'));
@@ -595,6 +595,7 @@ class Config extends \Prefab {
     /**
      * @param $fromExists
      * @param int $ttlMax
+     * @param array<string, mixed> $fromExists
      * @return int
      */
     static function ttlLeft(bool|array $fromExists, int $ttlMax) : int {

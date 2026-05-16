@@ -20,7 +20,7 @@ class CcpSystemsUpdate extends AbstractCron {
 
     /**
      * table names for all system log tables
-     * @var array
+     * @var array<string, mixed>
      */
     protected $logTables = [
         'jumps'         => 'system_jumps',
@@ -94,7 +94,7 @@ class CcpSystemsUpdate extends AbstractCron {
      * >> php index.php "/cron/importSystemData"
      * @param \Base $f3
      */
-    function importSystemData(\Base $f3){
+    function importSystemData(\Base $f3): void{
         $this->logStart(__FUNCTION__);
         $params = $this->getParams(__FUNCTION__);
 

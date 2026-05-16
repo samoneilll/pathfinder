@@ -23,7 +23,7 @@ abstract class AbstractPathfinderModel extends AbstractModel {
     /**
      * changed fields (columns) on update/insert
      * -> e.g. for character "activity logging"
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldChanges                 = [];
 
@@ -32,7 +32,7 @@ abstract class AbstractPathfinderModel extends AbstractModel {
      * -> enable/disable
      * @param $status
      */
-    public function setActivityLogging(bool $status){
+    public function setActivityLogging(bool $status): void{
         $this->enableActivityLogging = $status;
     }
 
@@ -41,7 +41,8 @@ abstract class AbstractPathfinderModel extends AbstractModel {
      * @param bool $essentials
      * @return NULL|void
      */
-    public function reset($mapper = true, $essentials = true){
+    #[\Override]
+    public function reset($mapper = true, $essentials = true): void{
         $this->fieldChanges = [];
         parent::reset($mapper, $essentials);
     }
@@ -57,7 +58,7 @@ abstract class AbstractPathfinderModel extends AbstractModel {
 
     /**
      * get old and new value from field, in case field is configured with 'activity-log'
-     * @return array
+     * @return array<string, mixed>
      */
     protected function getFieldChanges() : array {
         $changes = [];
@@ -86,6 +87,7 @@ abstract class AbstractPathfinderModel extends AbstractModel {
     /**
      * @return mixed|void
      */
+    #[\Override]
     public function save(){
         // save changed field value BEFORE ->save() it called!
         // parent::save() resets the schema and old values get replaced with new values

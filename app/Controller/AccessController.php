@@ -20,7 +20,8 @@ class AccessController extends Controller {
      * @return bool
      * @throws \Exception
      */
-    function beforeroute(\Base $f3,  $params) : bool {
+    #[\Override]
+    function beforeroute(\Base $f3,  array $params) : bool {
         if($return = parent::beforeroute($f3, $params)){
             // Any route/endpoint of a child class of this one,
             // requires a valid logged in user!
@@ -89,7 +90,7 @@ class AccessController extends Controller {
     /**
      * broadcast map data to clients
      * -> send over TCP Socket
-     * @param array|null $mapData
+     * @param array<string, mixed>|null $mapData
      */
     protected function broadcastMapData(?array $mapData) : void {
         if(!empty($mapData)){
@@ -101,7 +102,7 @@ class AccessController extends Controller {
      * get formatted Map Data
      * @param Pathfinder\MapModel $map
      * @param bool                $noCache
-     * @return array|null
+     * @return array<string, mixed>|null
      */
     protected function getFormattedMapData(Pathfinder\MapModel $map, bool $noCache = false) : ?array {
         $data = null;

@@ -20,7 +20,7 @@ class FactionModel extends AbstractUniverseModel {
     protected $table = 'faction';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'name' => [
@@ -81,9 +81,9 @@ class FactionModel extends AbstractUniverseModel {
     /**
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {
         $data = self::getF3()->ccpClient()->send('getUniverseFaction', $id);
         if(!empty($data) && !isset($data['error'])){
             $this->copyfrom($data, ['id', 'name', 'description', 'sizeFactor', 'stationCount', 'stationSystemCount']);

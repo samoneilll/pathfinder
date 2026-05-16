@@ -19,7 +19,7 @@ class SocketHandler extends \Monolog\Handler\SocketHandler {
      * @param $connectionString
      * @param int $level
      * @param bool $bubble
-     * @param array $metaData
+     * @param array<string, mixed> $metaData
      */
     public function __construct($connectionString, $level = Logger::DEBUG, $bubble = true, /**
      * some meta data (additional processing information)
@@ -34,9 +34,10 @@ class SocketHandler extends \Monolog\Handler\SocketHandler {
     /**
      * overwrite default handle()
      * -> change data structure after processor() calls and before formatter() calls
-     * @param array $record
+     * @param array<string, mixed> $record
      * @return bool
      */
+    #[\Override]
     public function handle(array $record) : bool {
         if (!$this->isHandling($record)) {
             return false;
@@ -56,7 +57,7 @@ class SocketHandler extends \Monolog\Handler\SocketHandler {
 
         try {
             $this->write($record);
-        } catch (\RuntimeException $e) {
+        } catch (\RuntimeException) {
             // Mark socket as unavailable so subsequent writes in this request
             // (and for the remainder of the cache TTL) skip the socket handler.
             \Base::instance()->set(Config::CACHE_KEY_SOCKET_VALID, false, Config::CACHE_TTL_SOCKET_VALID);

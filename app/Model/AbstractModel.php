@@ -126,7 +126,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
 
     /**
      * collection for validation errors
-     * @var array
+     * @var array<string, mixed>
      */
     protected $validationError              = [];
 
@@ -257,6 +257,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @return mixed
      * @throws ValidationException
      */
+    #[\Override]
     public function set($key, $val){
         if(is_string($val)){
             $val = trim($val);
@@ -312,7 +313,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
 
     /**
      * get static fields for this model instance
-     * @return array
+     * @return array<string, array<string, string|bool>>
      */
     protected function getStaticFieldConf() : array {
         $staticFieldConfig = [];
@@ -339,7 +340,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
     /**
      * extent the fieldConf Array with static fields for each table
      */
-    private function addStaticFieldConfig(){
+    private function addStaticFieldConfig(): void{
         $this->fieldConf = array_merge($this->getStaticFieldConf(), $this->fieldConf);
     }
 
@@ -481,7 +482,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param string $dataCacheKeyPrefix
      * @param int $data_ttl
      */
-    public function updateCacheData(mixed $cacheData, string $dataCacheKeyPrefix = '', int $data_ttl = self::DEFAULT_CACHE_TTL){
+    public function updateCacheData(mixed $cacheData, string $dataCacheKeyPrefix = '', int $data_ttl = self::DEFAULT_CACHE_TTL): void{
         $cacheDataTmp = (array)$cacheData;
 
         // check if data should be cached
@@ -501,7 +502,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * unset the getData() cache for this object
      * -> see also clearCacheDataWithPrefix(), for more information
      */
-    public function clearCacheData(){
+    public function clearCacheData(): void{
         $this->clearCache($this->getCacheKey());
     }
 
@@ -510,7 +511,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * -> primarily used by object cache with multiple data caches
      * @param string $dataCacheKeyPrefix
      */
-    public function clearCacheDataWithPrefix(string $dataCacheKeyPrefix = ''){
+    public function clearCacheDataWithPrefix(string $dataCacheKeyPrefix = ''): void{
         $this->clearCache($this->getCacheKey($dataCacheKeyPrefix));
     }
 
@@ -518,7 +519,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * unset object cached data (if exists)
      * @param string|null $cacheKey
      */
-    private function clearCache(string|null $cacheKey){
+    private function clearCache(string|null $cacheKey): void{
         if(!empty($cacheKey)){
             $f3 = self::getF3();
             if($f3->exists($cacheKey)){
@@ -533,7 +534,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param string $msg
      * @throws ValidationException
      */
-    protected function throwValidationException(string $col, string $msg = ''){
+    protected function throwValidationException(string $col, string $msg = ''): never {
         $msg = empty($msg) ? 'Validation failed: "' . $col . '".' : $msg;
         throw new ValidationException($msg, $col);
     }
@@ -542,7 +543,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param string $msg
      * @throws DatabaseException
      */
-    protected function throwDbException(string $msg){
+    protected function throwDbException(string $msg): never {
         throw new DatabaseException($msg);
     }
 
@@ -561,7 +562,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * -> this will not work (prevent abuse)
      * @param bool $active
      */
-    public function setActive(bool $active){
+    public function setActive(bool $active): void{
         // enables "active" change for this model
         $this->allowActiveChange = true;
         $this->active = $active;
@@ -582,7 +583,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * get dataSet by foreign column (single result)
      * @param string $key
      * @param mixed $value
-     * @param array $options
+     * @param array<string, int> $options
      * @param int $ttl
      * @param bool $isActive
      * @return bool
@@ -610,6 +611,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * get first model from a relation that matches $filter
      * @param string $key
      * @param  $filter
+     * @param array<string, mixed> $filter
      * @return mixed|null
      */
     protected function relFindOne(string $key, array $filter){
@@ -639,6 +641,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * get all models from a relation that match $filter
      * @param string $key
      * @param  $filter
+     * @param array<string, mixed> $filter
      * @return CortexCollection|null
      */
     protected function relFind(string $key, array $filter) : ?CortexCollection {
@@ -669,7 +672,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
     public function beforeInsertEvent(self $self,  $pkeys) : bool {
@@ -684,9 +687,9 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterInsertEvent(self $self,  $pkeys){
+    public function afterInsertEvent(self $self,  $pkeys): void {
     }
 
     /**
@@ -694,7 +697,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
     public function beforeUpdateEvent(self $self,  $pkeys) : bool {
@@ -706,16 +709,16 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterUpdateEvent(self $self,  $pkeys){
+    public function afterUpdateEvent(self $self,  $pkeys): void {
     }
 
     /**
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
     public function beforeEraseEvent(self $self,  $pkeys) : bool {
@@ -726,9 +729,9 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent(self $self,  $pkeys){
+    public function afterEraseEvent(self $self,  $pkeys): void {
     }
 
     /**
@@ -751,7 +754,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * truncate all table rows
      * -> Use with Caution!!!
      */
-    public function truncate(){
+    public function truncate(): void{
         if($this->allowTruncate && is_object($this->db)){
             $this->db->exec("TRUNCATE " . $this->getTable());
         }
@@ -761,16 +764,19 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * format dateTime column
      * @param string $column
      * @param string $format
-     * @return false|null|string
+     * @return string|null
      */
-    public function getFormattedColumn(string $column, string $format = 'Y-m-d H:i'){
-        return $this->get($column) ? date($format, strtotime( $this->get($column) )) : null;
+    public function getFormattedColumn(string $column, string $format = 'Y-m-d H:i'): ?string {
+        $col = $this->get($column);
+        $ts  = $col ? strtotime((string)$col) : false;
+        return $ts !== false ? date($format, $ts) : null;
     }
 
     /**
      * export and download table data as *.csv
      * this is primarily used for static tables
      * @param  $fields
+     * @param array<string, mixed> $fields
      * @return bool
      */
     public function exportData(array $fields = []) : bool {
@@ -822,7 +828,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * -> 'group' by $getByKey column name and return array
      * @param string $table
      * @param string $getByKey
-     * @return array
+     * @return array<string, mixed>
      */
     public static function getCSVData(string $table, string $getByKey = 'id') : array {
         $hashKeyTableCSV = static::generateHashKeyTable($table, static::CACHE_KEY_PREFIX . '_' . self::CACHE_KEY_CSV_PREFIX);
@@ -840,7 +846,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
     /**
      * load data from *.csv file
      * @param string $fileName
-     * @return array
+     * @return array<string, mixed>
      */
     protected static function loadCSV(string $fileName) : array {
         $tableData = [];
@@ -876,7 +882,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
 
     /**
      * import table data from a *.csv file
-     * @return array|bool
+     * @return array<string, mixed>|bool
      */
     public function importData(){
         $status = false;
@@ -897,7 +903,8 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * insert/update static data into this table
      * WARNING: rows will be deleted if not part of $tableData !
      * @param  $tableData
-     * @return array
+     * @param array<string, mixed> $tableData
+     * @return array<string, mixed>
      */
     protected function importStaticData(array $tableData = []) : array {
         $rowIDs = [];
@@ -961,13 +968,13 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * add new validation error
      * @param ValidationException $e
      */
-    protected function setValidationError(ValidationException $e){
+    protected function setValidationError(ValidationException $e): void {
         $this->validationError[] = $e->getError();
     }
 
     /**
      * get all validation errors
-     * @return array
+     * @return array<string, mixed>
      */
     public function getErrors() : array {
         return $this->validationError;
@@ -1004,6 +1011,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
     /**
      * @return mixed
      */
+    #[\Override]
     public function save(){
         $return = false;
         try{
@@ -1044,7 +1052,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
     /**
      * get model data as array
      * @param mixed $data
-     * @return array
+     * @return array<string, mixed>
      */
     public static function toArray(mixed $data) : array {
         return json_decode(json_encode($data), true);
@@ -1058,7 +1066,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param mixed $value
      * @param string $operator
      * @param string $suffix
-     * @return array
+     * @return array<string, mixed>
      */
     public static function getFilter(string $key, $value, string $operator = '=', string $suffix = '') : array {
         $placeholder = ':' . implode('_', array_filter([$key, $suffix]));
@@ -1075,7 +1083,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param mixed $data
      * @param int $ttl
      */
-    public static function setCacheValue(string $key, mixed $data, int $ttl = 0){
+    public static function setCacheValue(string $key, mixed $data, int $ttl = 0): void{
         $cache = \Cache::instance();
         $cache->set(self::getF3()->hash($key).'.var', $data, $ttl);
     }
@@ -1098,7 +1106,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param string $text
      * @param string $type
      */
-    public static function log($text, $type = 'DEBUG'){
+    public static function log($text, $type = 'DEBUG'): void{
         Controller\LogController::getLogger($type)->write($text);
     }
 
@@ -1115,8 +1123,8 @@ abstract class AbstractModel extends Cortex implements \Stringable {
     /**
      * Check whether a (multi)-column index exists or not on a table
      * related to this model
-     * @param  $columns
-     * @return bool|array
+     * @param array<string, mixed> $columns
+     * @return bool|array<string, mixed>
      */
     public static function indexExists(array $columns = []){
         $tableModifier = self::getTableModifier();
@@ -1139,6 +1147,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @param  $columns Column(s) to be indexed
      * @param bool $unique Unique index
      * @param int $length index length for text fields in mysql
+     * @param array<string, mixed> $columns
      * @return bool
      */
     public static function setMultiColumnIndex(array $columns = [], bool $unique = false, int $length = 20) : bool {
@@ -1193,6 +1202,7 @@ abstract class AbstractModel extends Cortex implements \Stringable {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         $status = parent::setup($db, $table, $fields);
 

@@ -14,7 +14,7 @@ use Exodus4D\Pathfinder\Exception;
 abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implements LogModelInterface {
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     private $trackingFieldConf = [
         'createdCharacterId' => [
@@ -45,8 +45,9 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
 
     /**
      * get static character  fields for this model instance
-     * @return array
+     * @return array<string, mixed>
      */
+    #[\Override]
     protected function getStaticFieldConf(): array{
         return array_merge(parent::getStaticFieldConf(), $this->trackingFieldConf);
     }
@@ -55,9 +56,9 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
      * log character activity create/update/delete events
      * @param string $action
      */
-    protected function logActivity($action){
-        // check if activity logging is enabled for this object and if updatedCharacterId is valid characterModel instance
-        if($this->enableActivityLogging && $this->updatedCharacterId instanceof CharacterModel){
+    protected function logActivity($action): void {
+        // check if activity logging is enabled for this object
+        if($this->enableActivityLogging){
             // check for field changes
             if(
                 mb_stripos(mb_strtolower($action), 'delete') !== false ||
@@ -73,6 +74,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
      * @return bool
      * @throws Exception\DatabaseException
      */
+    #[\Override]
     public function isValid(): bool {
         if($valid = parent::isValid()){
             foreach($this->trackingFieldConf as $key => $colConf){
@@ -94,7 +96,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
 
     /**
      * get log file data
-     * @return array
+     * @return array{}
      */
     public function getLogData(): array {
         return [];
@@ -105,6 +107,7 @@ abstract class AbstractMapTrackingModel extends AbstractPathfinderModel implemen
      * @param CharacterModel $characterModel
      * @return ConnectionModel|false
      */
+    #[\Override]
     public function save(?CharacterModel $characterModel = null){
         if($this->dry()){
             $this->createdCharacterId = $characterModel;

@@ -20,7 +20,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
     protected $table = 'system_signature';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'active' => [
@@ -85,7 +85,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * set data by associative array
      * @param  $data
      */
-    public function setData( $data){
+    public function setData( array $data): void{
         $this->copyfrom($data, ['name', 'groupId', 'typeId', 'description', 'connectionId']);
     }
 
@@ -180,6 +180,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * @return Logging\LogInterface
      * @throws Exception\ConfigException
      */
+    #[\Override]
     public function newLog(string $action = ''): Logging\LogInterface{
         return $this->getMap()->newLog($action)->setTempData($this->getLogObjectData());
     }
@@ -205,7 +206,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * @param  $signatureData
      * @return bool
      */
-    public function hasChanged( $signatureData) : bool {
+    public function hasChanged( array $signatureData) : bool {
         $hasChanged = false;
 
         foreach((array)$signatureData as $key => $value){
@@ -229,6 +230,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * @param CharacterModel $characterModel
      * @return bool
      */
+    #[\Override]
     public function hasAccess(CharacterModel $characterModel) : bool {
         return $this->systemId ? $this->systemId->hasAccess($characterModel) : false;
     }
@@ -245,9 +247,9 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterInsertEvent($self, $pkeys){
+    public function afterInsertEvent($self, $pkeys): void{
         $self->logActivity('signatureCreate');
         $self->syncConnectionMass();
     }
@@ -257,9 +259,10 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * can be overwritten
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      * @return bool
      */
+    #[\Override]
     public function beforeUpdateEvent($self, $pkeys) : bool {
         // "updated" column should always be updated if no changes made this signature
         // -> makes it easier to see what signatures have not been updated
@@ -284,9 +287,9 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * return false will stop any further action
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterUpdateEvent($self, $pkeys){
+    public function afterUpdateEvent($self, $pkeys): void{
         $self->logActivity('signatureUpdate');
         $self->syncConnectionMass();
     }
@@ -318,9 +321,9 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * Event "Hook" function
      * can be overwritten
      * @param self $self
-     * @param array $pkeys
+     * @param array<string, mixed> $pkeys
      */
-    public function afterEraseEvent($self, $pkeys){
+    public function afterEraseEvent($self, $pkeys): void{
         $self->logActivity('signatureDelete');
 
         if(
@@ -333,7 +336,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
 
     /**
      * get object relevant data for model log
-     * @return array
+     * @return array<string, int|string>
      */
     public function getLogObjectData() : array{
         return [
@@ -350,6 +353,7 @@ class SystemSignatureModel extends AbstractMapTrackingModel {
      * @return bool
      * @throws \Exception
      */
+    #[\Override]
     public static function setup($db = null, $table = null, $fields = null){
         if($status = parent::setup($db, $table, $fields)){
             $status = parent::setMultiColumnIndex(['systemId', 'typeId', 'groupId']);

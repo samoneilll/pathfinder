@@ -18,7 +18,7 @@ class ConstellationModel extends AbstractUniverseModel {
     protected $table = 'constellation';
 
     /**
-     * @var array
+     * @var array<string, mixed>
      */
     protected $fieldConf = [
         'name' => [
@@ -77,9 +77,9 @@ class ConstellationModel extends AbstractUniverseModel {
     /**
      * @param int $id
      * @param string $accessToken
-     * @param array $additionalOptions
+     * @param array<string, mixed> $additionalOptions
      */
-    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []){
+    protected function loadData(int $id, string $accessToken = '', array $additionalOptions = []): void {
         $data = self::getF3()->ccpClient()->send('getUniverseConstellation', $id);
         if(!empty($data)){
             /**
@@ -97,7 +97,7 @@ class ConstellationModel extends AbstractUniverseModel {
     /**
      * load systems data for this constellation
      */
-    public function loadSystemsData(){
+    public function loadSystemsData(): void{
         if( !$this->dry() ){
             $data = self::getF3()->ccpClient()->send('getUniverseConstellation', $this->_id);
             if(!empty($data)){

@@ -51,7 +51,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function initData(\Base $f3){
+    public function initData(\Base $f3): void{
         $validInitData = true;
         $ttl = 60 * 60;
 
@@ -278,7 +278,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function import(\Base $f3){
+    public function import(\Base $f3): void {
         $importData = (array)$f3->get('POST');
 
         $return = (object) [];
@@ -292,7 +292,7 @@ class Map extends Controller\AccessController {
             $activeCharacter = $this->getCharacter();
 
             if(!$activeCharacter){
-                return $return;
+                return;
             }
 
             /**
@@ -444,7 +444,7 @@ class Map extends Controller\AccessController {
      * @param Pathfinder\MapModel $map
      * @throws \Exception
      */
-    protected function broadcastMapAccess(Pathfinder\MapModel $map){
+    protected function broadcastMapAccess(Pathfinder\MapModel $map): void {
         $mapAccess =  [
             'id' => $map->_id,
             'name' => $map->name,
@@ -463,12 +463,12 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function getAccessData(\Base $f3){
+    public function getAccessData(\Base $f3): void {
         $return = (object) [];
 
         $activeCharacter = $this->getCharacter();
         if(!$activeCharacter){
-            return $return;
+            return;
         }
 
         $characterData = $activeCharacter->getData(true);
@@ -521,7 +521,7 @@ class Map extends Controller\AccessController {
     /**
      * update maps with $mapsData where $character has access to
      * @param Pathfinder\CharacterModel $character
-     * @param array $mapsData
+     * @param array<string, mixed> $mapsData
      * @return \stdClass
      */
     protected function updateMapsData(Pathfinder\CharacterModel $character,  $mapsData) : \stdClass {
@@ -616,7 +616,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function updateData(\Base $f3){
+    public function updateData(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $mapsData = (array)($postData['mapData'] ?? []);
         $userDataRequired = (bool)($postData['getUserData'] ?? false);
@@ -644,7 +644,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function updateUnloadData(\Base $f3){
+    public function updateUnloadData(\Base $f3): void{
         $postData = (array)$f3->get('POST');
 
         if(!empty($mapsData = (string)($postData['mapData'] ?? ''))){
@@ -663,7 +663,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function updateUserData(\Base $f3){
+    public function updateUserData(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $mapIds = (array)($postData['mapIds'] ?? []);
         $getMapUserData = (bool)($postData['getMapUserData'] ?? false);
@@ -737,7 +737,7 @@ class Map extends Controller\AccessController {
      * update map connections/systems based on $character´s location logs
      * @param Pathfinder\MapModel $map
      * @param Pathfinder\CharacterModel $character
-     * @param array $newSystemPositions
+     * @param array<string, mixed> $newSystemPositions
      * @return Pathfinder\MapModel
      * @throws \Exception
      */
@@ -1031,7 +1031,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function getConnectionData(\Base $f3){
+    public function getConnectionData(\Base $f3): void{
         $postData = (array)$f3->get('POST');
 
         $addData = (array)($postData['addData'] ?? []);
@@ -1082,7 +1082,7 @@ class Map extends Controller\AccessController {
      * @param \Base $f3
      * @throws \Exception
      */
-    public function getLogData(\Base $f3){
+    public function getLogData(\Base $f3): void{
         $postData = (array)$f3->get('POST');
         $return = (object) [];
         $return->data = [];
