@@ -29,9 +29,9 @@ class TokenCipher {
             return '';
         }
         $key   = self::getKey();
-        $nonce = random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
-        $ct    = sodium_crypto_secretbox($plaintext, $nonce, $key);
-        sodium_memzero($key);
+        $nonce = \random_bytes(SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
+        $ct    = \sodium_crypto_secretbox($plaintext, $nonce, $key);
+        \sodium_memzero($key);
         return self::VERSION_PREFIX . base64_encode($nonce . $ct);
     }
 
@@ -58,8 +58,8 @@ class TokenCipher {
         $nonce = substr($raw, 0, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $ct    = substr($raw, SODIUM_CRYPTO_SECRETBOX_NONCEBYTES);
         $key   = self::getKey();
-        $pt    = sodium_crypto_secretbox_open($ct, $nonce, $key);
-        sodium_memzero($key);
+        $pt    = \sodium_crypto_secretbox_open($ct, $nonce, $key);
+        \sodium_memzero($key);
         return $pt === false ? '' : $pt;
     }
 
@@ -73,12 +73,12 @@ class TokenCipher {
             throw new \RuntimeException('TOKEN_ENCRYPTION_KEY is not configured');
         }
         try {
-            $key = sodium_hex2bin($hex);
+            $key = \sodium_hex2bin($hex);
         } catch (\SodiumException) {
             throw new \RuntimeException('TOKEN_ENCRYPTION_KEY must be hex-encoded');
         }
         if (strlen($key) !== SODIUM_CRYPTO_SECRETBOX_KEYBYTES) {
-            sodium_memzero($key);
+            \sodium_memzero($key);
             throw new \RuntimeException('TOKEN_ENCRYPTION_KEY must be 32 bytes (64 hex chars)');
         }
         return $key;

@@ -43,7 +43,7 @@ class SystemTag {
             $tagsInUse = array();
 
             foreach($systems as $system){
-                if($system->security == $systemClass && !$system->locked && gettype($system->tag) == "string"){
+                if($system->security == $systemClass && !$system->locked && is_string($system->tag) && $system->tag !== ''){
                     array_push($tagsInUse, SystemTag::tagToInt($system->tag));
                 }
             }
@@ -88,7 +88,7 @@ class SystemTag {
             $int = ord($tag) - 97;
         } else {
             $chars = str_split($tag);
-            $int = ((ord($chars[0]) - 96) * 26) + (ord($chars[1]) - 97);
+            $int = ((ord($chars[0] ?? '') - 96) * 26) + (ord($chars[1] ?? '') - 97);
         }
         return $int;
     }
